@@ -1,0 +1,9 @@
+.vscode/
+B11115030/
+*.zip
+*.sd
+
+p2_template/
+y.tab.*
+lex.yy.*
+parser

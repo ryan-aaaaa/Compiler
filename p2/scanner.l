@@ -1,7 +1,7 @@
 %{
 #define LIST     strcat(buf, yytext)
 
-int tokenFlag = true;
+int tokenFlag = false;
 
 #define token(t) {LIST;  if(tokenFlag) printf("<%s>\n", t);}
 #define tokenInteger(t, i) {LIST;  if(tokenFlag) printf("<%s: %d>\n", t, i);} 

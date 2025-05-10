@@ -17,7 +17,7 @@ extern int linenum;
 using namespace std;
 
 // trace 
-bool traceFlag = true;
+bool traceFlag = false;
 #define Trace(t) if(traceFlag) std::cout << t << std::endl;
 
 
@@ -130,7 +130,7 @@ variable_decl:
         if($1 == DataType::VOID_T) yyerror("void type is not allowed");
         for(AstNode* node : *$2){
             if(node->dataType != DataType::UNKNOWN){
-                if(!node->isConst) yyerror("not constant expression");
+                // if(!node->isConst) yyerror("not constant expression");
                 if($1 != node->dataType) yyerror("datatype of expr is wrong");
             } 
             node->dataType = $1;
@@ -329,7 +329,6 @@ simple_stmt:
                                             if($3->isFunc) yyerror("cannot assign function");
                                             if($1->isArray != $3->isArray) yyerror("one is array and the other is not");
                                             if($1->isArray){
-                                                cout << "arr_ref = expr;" << endl;
                                                 vector<int> left = $1->arrayDims;
                                                 vector<int> right = $3->arrayDims;
                                                 if(left.size() != right.size()) yyerror("dimension not match");
@@ -918,11 +917,12 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    // construct global symbol table
     sbt = new SymbolTable();
-    if(yyparse()){
-        yyerror("Parsing error!");
-    } 
+    // start parsing
+    yyparse();
 
+    // check main() 
     AstNode* mainFunc = sbt->lookup("main");
     if(mainFunc == nullptr) yyerror("no main function");
     if(!mainFunc->isFunc) yyerror("main is not a function");

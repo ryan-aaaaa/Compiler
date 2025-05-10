@@ -18,13 +18,14 @@
 
 ### 額外功能
 - [x] UPLUS 可以用
+- [x] constant 可以像 variable 用 identifier list 宣告
+- [x] variable 宣告可以接受 expr 包含之前宣告的 variable 
+- [x] array 可以和 variable 一起宣告
+- [x] 可以接受 `return ;`
 - [x] if/if-else 支援 simple/block 以外的 stmt
 - [x] while/for/foreach 支援 simple/block 以外的 stmt
 - [x] array 可以被一個相同維度且相同大小的 array 賦值
 - [x] array slicing 可以, 也可以被一個相同維度且相同大小的 array 賦值
-- [x] 可以接受 `return ;`
-- [x] constant 可以像 variable 用 identifier list 宣告
-- [x] array 可以和 variable 一起宣告
 
 
 

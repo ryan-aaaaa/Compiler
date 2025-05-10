@@ -1,0 +1,35 @@
+
+
+// constant declaration with identifier list
+const int ca = 1, cb = 12 + 33 * 4, cc = 3;
+
+// variable declaration with varaibles that declared before
+// array declaration with variable declaration
+int a = 10, b = 20, garr[1][2][3][4][5], d;
+int c = a + b;
+
+
+// return ;
+void void_func(string msg){
+    println msg;
+    return ;
+}
+
+void main(){
+    
+    // loop stmt can contain statement that is not simple or block stmt
+    int i = 0, n = 10, sum = 0;
+    bool flag;
+    while(flag) 
+        if(i < n) sum = sum + i;
+        else flag = false;
+
+    // conditional stmt can contain statement that is not simple or block stmt
+    if(true) if(true) if(true) if(true) if(true) println "true"; else if(false) println "false";
+
+    // array assignment & array slicing
+    int arr[2][3][4], brr[1][2][3][4], crr[2][3][4], drr[3][4];
+    arr = brr[0];
+    arr = crr;
+    arr[1] = drr;
+}

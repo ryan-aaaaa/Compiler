@@ -10,6 +10,7 @@
 
 SymbolTable::SymbolTable(){
     this->parent = nullptr;
+    this->children.clear();
 }
 
 
@@ -34,6 +35,7 @@ bool SymbolTable::insert(AstNode entry){
     table[name] = entry;
     return true;
 }
+
 #include <iomanip>
 void SymbolTable::dump(){
     cout << endl << "==================================================================================" << endl;

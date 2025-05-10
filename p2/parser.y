@@ -85,16 +85,20 @@ void yyerror(string s);
 %type <nodeList> stmt_list
 %%
 
+// program
 program:
     decl_list { Trace("Reduce: <decl_list> => <program>"); }
 ;
 
 
+// declaration list
 decl_list:
       /* empty */   
     | decl_list decl  { Trace("Reduce: <decl_list> <decl> => <decl_list>"); }
 ; 
 
+
+// declaration
 decl:
       constant_decl   { Trace("Reduce: <constant_decl> => <decl>"); }
     | variable_decl   { Trace("Reduce: <variable_decl => <decl>"); }
@@ -102,7 +106,7 @@ decl:
     | function_decl   { Trace("Reduce: <function_decl> => <decl>"); }
 ;
 
-/* constant, variable declaration */
+// constant declartion 
 constant_decl:
     CONST data_type ID '=' expr ';'  { 
         Trace("Reduce: <CONST> <data_type> <ID> <'='> <expr> <';'> => <constant_decl>");
@@ -116,6 +120,7 @@ constant_decl:
     }
 ;
 
+// variable declaration
 variable_decl:
     data_type identifier_list ';' {
         Trace("Reduce: <data_type> <identifier_list> <';'> => <variable_decl>");
@@ -133,6 +138,8 @@ variable_decl:
     }
 ;
 
+
+// array declaration
 array_decl:
     data_type ID array_dim_decl ';' {
         Trace("Reduce: <data_type> <ID> <array_dim_decl> <';'> => <array_decl>");
@@ -150,12 +157,13 @@ array_decl:
     }
 ;
 
+// array dimension declaration
 array_dim_decl:
       array_dim_decl '[' INT_VAL']'  { $1->push_back($3); $$ = $1; }
     | '[' INT_VAL ']'  { $$ = new vector<int>(); $$->push_back($2); }
 ;
 
-
+// identifier list
 identifier_list:
       identifier_list ',' identifier_decl   {   
                                                 Trace("Reduce: <identifier_list> <','> <identifier_decl> => <identifier_list>");
@@ -169,6 +177,7 @@ identifier_list:
                                             }
 ;
 
+// identifier declaration
 identifier_decl:
       ID '=' expr   {   
                         Trace("Reduce: <ID> <'='> <expr> => <identifier_decl>");
@@ -185,7 +194,7 @@ identifier_decl:
 
 
 
-/* function declaration */
+// function declaration
 function_decl:
     data_type ID '(' optional_param_list ')' {
         Trace("Reduce: <data_type> <ID> <'('> <optional_param_list> ) <')'> <block_stmt> => <function_decl>");
@@ -210,16 +219,20 @@ function_decl:
     }
 ;
 
+
+// option parameter list
 optional_param_list:
       /* empty */   { Trace("Reduce: <empty> => <optional_param_list>");  $$ = new vector<AstNode*>(); }
     | param_list    { Trace("Reduce: <param_list> => <optional_param_list>");  $$ = $1; }
 ;
 
+// parameter list
 param_list:
       param_list ',' param  { Trace("Reduce: <param_list> <,> <param> => <param_list>"); $1->push_back($3); $$ = $1; }
     | param   { Trace("Reduce: <param> => <param_list>"); $$ = new vector<AstNode*>(); $$->push_back($1); }             
 ;
 
+// parameter
 param:
       data_type ID  {
                         Trace("Reduce: <data_type> <ID> => <param>");
@@ -241,7 +254,7 @@ param:
 
 
 
-/* statements */
+// statement list
 stmt_list:
       /* empty */    { Trace("Reduce: <empty> => <stmt_list>"); $$ = new vector<AstNode*>(); }
     | stmt_list stmt {
@@ -251,6 +264,8 @@ stmt_list:
     }
 ;
 
+
+// statement
 stmt:
       block_stmt        { Trace("Reduce: <block_stmt> => <stmt>"); $$ = $1; }
     | simple_stmt       { Trace("Reduce: <simple_stmt> => <stmt>"); $$ = $1; }
@@ -262,6 +277,7 @@ stmt:
     | array_decl        { Trace("Reduce: <array_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }   
 ;
 
+// block statement
 block_stmt:
       '{'   { enterScope(); 
                 if(inFunction){
@@ -288,14 +304,16 @@ block_stmt:
       }
 ;
 
+
+// simple statement
 simple_stmt:
       /* empty */ ';'                   { Trace("Reduce: <empty> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     |  expr ';'                         { Trace("Reduce: <expr> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     | ID '=' expr ';'                   { 
                                             Trace("Reduce: <ID> <'='> <expr> <';'> => <simple_stmt>"); 
                                             AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("Identifier: ") + $1 + " is not declared");
-                                            if(entry->isConst) yyerror(string("Identifier: ") + $1 + " is constant");
+                                            if(entry == nullptr) yyerror(string("Identifier ") + $1 + " is not declared");
+                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant");
                                             if(entry->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if(entry->isFunc) yyerror("function can not be assinged");
@@ -372,14 +390,15 @@ simple_stmt:
 ;
 
 
+// simple statement witout semicolon
 simple_stmt_without_semicolon:
       /* empty */                       { Trace("Reduce: <empty> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     | expr                              { Trace("Reduce: <expr> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     | ID '=' expr                       { 
                                             Trace("Reduce: <ID> <'='> <expr> => <simple_stmt_without_semicolon>"); 
                                             AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("Identifier: ") + $1 + " is not declared");
-                                            if(entry->isConst) yyerror(string("Identifier: ") + $1 + " is constant");
+                                            if(entry == nullptr) yyerror(string("Identifier ") + $1 + " is not declared");
+                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant");
                                             if(entry->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if(entry->isFunc) yyerror("function can not be assinged");
@@ -456,13 +475,14 @@ simple_stmt_without_semicolon:
 ;
 
 
+// condition statement
 condition_stmt:
-      IF '(' expr ')' simple_or_block_stmt   %prec LOWER_THAN_ELSE   {
+      IF '(' expr ')' stmt   %prec LOWER_THAN_ELSE   {
             Trace("Reduce: <IF> <'('> <expr> <')'> <simple_or_block_stmt> => <condition_stmt>"); 
             if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
             $$ = makeNode($5); // return type of statement
         }
-    | IF '(' expr ')' simple_or_block_stmt ELSE simple_or_block_stmt  {
+    | IF '(' expr ')' stmt ELSE stmt  {
         Trace("Reduce: <IF> <'('> <expr> <')'> <simple_or_block_stmt> <ELSE> <simple_or_block_stmt> => <condition_stmt>"); 
         if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
         if($5->dataType == $7->dataType) $$ = makeNode($5);
@@ -472,25 +492,27 @@ condition_stmt:
     }            
 ;
 
-simple_or_block_stmt:
-      simple_stmt  { Trace("Reduce: <simple_stmt> => <simple_or_block_stmt>"); $$ = $1; }
-    | block_stmt   { Trace("Reduce: <block_stmt> => <simple_or_block_stmt>"); $$ = $1; }
-;
+// // simple or block statement
+// simple_or_block_stmt:
+//       simple_stmt  { Trace("Reduce: <simple_stmt> => <simple_or_block_stmt>"); $$ = $1; }
+//     | block_stmt   { Trace("Reduce: <block_stmt> => <simple_or_block_stmt>"); $$ = $1; }
+// ;
 
 
+// loop statement 
 loop_stmt:
-      WHILE '(' expr ')' simple_or_block_stmt {
+      WHILE '(' expr ')' stmt {
             Trace("Reduce: <WHILE> <'('> <expr> <')'> <simple_or_block_stmt> => <loop_stmt>"); 
             Trace("Reduce: <while_stmt> => <loop_stmt>"); 
             if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
             $$ = makeNode($5); // return type of statement
       }                       
-    | FOR '(' simple_stmt_without_semicolon ';' expr ';' simple_stmt_without_semicolon ')' simple_or_block_stmt  {
+    | FOR '(' simple_stmt_without_semicolon ';' expr ';' simple_stmt_without_semicolon ')' stmt  {
         Trace("Reduce: <FOR> <'('> <simple_stmt_without_semicolon> <';'> <expr> <';'> <simple_stmt_without_semicolon> <')'> <simple_or_block_stmt> => <loop_stmt>"); 
         if($5->dataType != DataType::BOOL_T) yyerror("not boolean expression");
         $$ = makeNode($9); // return type of statement
     }            
-    | FOREACH '(' ID ':' numeric '.' '.' numeric ')' simple_or_block_stmt {
+    | FOREACH '(' ID ':' numeric '.' '.' numeric ')' stmt {
         Trace("Reduce: <FOREACH> <'('> <ID> <':'> <numeric> <'.'> <'.'> <numeric> <)> <simple_or_block_stmt> => <loop_stmt>"); 
         AstNode* entry = sbt->lookup($3);
         if(entry == nullptr) yyerror(string("ID ") + $3 + " is not declared");
@@ -500,6 +522,8 @@ loop_stmt:
     }
 ;
 
+
+// numeric
 numeric:
      ID  {
             Trace("Reduce: <ID> => <numeric>")
@@ -514,11 +538,14 @@ numeric:
 ;
 
 
+// return statement
 return_stmt:
       RETURN ';'       { Trace("Reduce: <return> <';'> => <return_stmt>"); $$ = makeNode(); $$->dataType = DataType::VOID_T;}
     | RETURN expr ';'  { Trace("Reduce: <return> <expr> <';'> => <return_stmt>"); $$ = makeNode($2);}       
 ;
 
+
+// expression
 expr:
       expr LOGICAL_AND expr         { 
                                         Trace("Reduce: <expr> <LOGICAL_AND> <expr> => <expr>"); 
@@ -718,7 +745,7 @@ expr:
     | ID '(' optional_arg_list ')'  {
                                         Trace("Reduce: <ID> <'('> <optional_arg_list> <')'> => <expr>"); 
                                         AstNode* fn = sbt->lookup($1);
-                                        if(fn == nullptr) yyerror(string("Function: ") + $1 + " is not declared");
+                                        if(fn == nullptr) yyerror(string("Function ") + $1 + " is not declared");
                                         if(!fn->isFunc) yyerror(string("Identifier ") + $1 + " is not a fucntion");
                                         vector<AstNode*>* argList = $3;
                                         if(fn->paramList.size() != argList->size()) yyerror("arg count not match.");
@@ -760,6 +787,7 @@ expr:
 ;
 
 
+
 // only return type and value of array reference
 array_reference:
     ID array_dim_reference {
@@ -786,6 +814,7 @@ array_reference:
 ;
 
 
+// array dimension reference
 array_dim_reference:
       '[' expr ']'                      { 
                                             Trace("Reduce: <'['> <expr> <']'> => <array_dim_reference>");
@@ -802,22 +831,24 @@ array_dim_reference:
 ;
 
 
-/* function argument list */
+// optional argument list
 optional_arg_list:
       /* empty */  { Trace("Reduce: <empty> => <optional_arg_list>"); $$ = new vector<AstNode*>(); }
     | arg_list     { Trace("Reduce: <arg_list> => <optional_arg_list>"); $$ = $1; }
 ;
 
+// argument list
 arg_list:
       arg_list ',' arg  { Trace("Reduce: <arg_list> <','> <arg> => <arg_list>"); $1->push_back($3); $$ = $1; }  
     | arg               { Trace("Reduce: <arg> => <arg_list>"); $$ = new vector<AstNode*>(); $$->push_back($1); }          
 ;
 
+// argument
 arg:
     expr     { Trace("Reduce: <expr> => <arg>"); $$ = $1; }
 ;
 
-/* literal */
+// literal
 literal:
       TRUE             { Trace("Reduce: true => <literal>"); $$ = makeNode(); $$->dataType = DataType::BOOL_T;   $$->isConst = true; $$->bVal = true; }
     | FALSE            { Trace("Reduce: false => <literal>") ;$$ = makeNode(); $$->dataType = DataType::BOOL_T;   $$->isConst = true; $$->bVal = false; }
@@ -826,7 +857,7 @@ literal:
     | FLOAT_VAL        { Trace("Reduce: <FLOAT_VAL: " + to_string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::FLOAT_T;  $$->isConst = true; $$->dVal = $1; }  
 ;                       
 
-/* datatype */
+// data type
 data_type:
       VOID_TYPE       { Trace("Reduce: void => <data_type>");    $$ = DataType::VOID_T;   }
     | BOOL_TYPE       { Trace("Reduce: bool => <data_type>");    $$ = DataType::BOOL_T;   }
@@ -837,8 +868,7 @@ data_type:
 %%
 
 
-
-
+// enter new scope, new a symbol table
 void enterScope(){
     cout << "\n> Enter new scope: " << endl;
     SymbolTable* newScope = new SymbolTable();
@@ -847,6 +877,8 @@ void enterScope(){
     sbt = newScope;
 }
 
+
+// exit scope, dump symbol table
 void exitScope(){
     cout << "\n> Exit current scope, dump symbol table: ";
     sbt->dump();
@@ -854,14 +886,14 @@ void exitScope(){
 }
 
 
-
+// yyerror, print error message
 void yyerror(string s) {
     cout << "Error: " << s << ", in line " << linenum << endl;
     exit(1);
 }
 
 
-
+// main function
 int main(int argc, char* argv[]) {
     if(argc != 2) {
         printf("Usage: ./parser <sD filename>\n");

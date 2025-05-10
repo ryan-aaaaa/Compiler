@@ -15,6 +15,7 @@ public:
     unordered_map<string, AstNode> table;
     SymbolTable* parent;
     vector<SymbolTable*> children;
+    vector<string> identifiers; // for insert order
 
     SymbolTable();
     AstNode* lookup(string s);

@@ -10,7 +10,6 @@
 
 SymbolTable::SymbolTable(){
     this->parent = nullptr;
-    this->children.clear();
 }
 
 
@@ -33,29 +32,31 @@ bool SymbolTable::insert(AstNode entry){
     string name = entry.name;
     if(table.find(name) != table.end()) return false; // already exist
     table[name] = entry;
+    identifiers.push_back(name);
     return true;
 }
 
 #include <iomanip>
 void SymbolTable::dump(){
-    cout << endl << "==================================================================================" << endl;
+    cout << endl << string(84, '=') << endl;
     cout << left << setw(30) << "Symbol Name"
          << setw(15) << "Data Type"
          << setw(10) << "isConst"
          << setw(10) << "isArray"
          << setw(10) << "isFunc"
          << endl;
+    cout << string(84, '-') << endl;
 
-    cout << "----------------------------------------------------------------------------------" << endl;
-    for(auto& [name, info] : table){
-        cout << left << setw(30) << name
-             << setw(15) << getTypeStr(info.dataType)
-             << setw(10) << info.isConst
-             << setw(10) << info.isArray
-             << setw(10) << info.isFunc
-             << endl;        
+    for(string& id : identifiers){
+        auto& info = table[id];
+            cout << left << setw(30) << id
+                 << setw(15) << getTypeStr(info.dataType)
+                 << setw(10) << info.isConst
+                 << setw(10) << info.isArray
+                 << setw(10) << info.isFunc
+                 << endl;        
     }
-    cout << "==================================================================================" << endl << endl;
+    cout << string(84, '=') << endl << endl;;
 }
 
 

@@ -68,16 +68,16 @@ void SymbolTable::dump(){
 }
 
 
-// dump symbol table and all its child's symbol table recursively
-void SymbolTable::recursiveDump(int depth){
-    std::string indent(depth, '\t');              
-    for (const auto& [name, _] : table) {
-        std::cout << indent << name << '\n';
-    }
-    cout << endl; 
+// // dump symbol table and all its child's symbol table recursively
+// void SymbolTable::recursiveDump(int depth){
+//     std::string indent(depth, '\t');              
+//     for (const auto& [name, _] : table) {
+//         std::cout << indent << name << '\n';
+//     }
+//     cout << endl; 
     
-    for (SymbolTable* child : children) {
-        if (child) child->recursiveDump(depth + 1);
-    }
-}
+//     for (SymbolTable* child : children) {
+//         if (child) child->recursiveDump(depth + 1);
+//     }
+// }
 

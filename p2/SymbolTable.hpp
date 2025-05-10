@@ -22,7 +22,7 @@ public:
     AstNode* lookup(string s);
     bool insert(AstNode entry);
     void dump();
-    void recursiveDump(int depth);
+    // void recursiveDump(int depth);
 };
 
 

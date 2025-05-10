@@ -81,7 +81,7 @@ void yyerror(string s);
 %type <nodeList> arg_list optional_arg_list
 %type <node> param 
 %type <nodeList> param_list optional_param_list
-%type <node> stmt block_stmt return_stmt simple_stmt condition_stmt loop_stmt simple_stmt_without_semicolon simple_or_block_stmt
+%type <node> stmt block_stmt return_stmt simple_stmt condition_stmt loop_stmt simple_stmt_without_semicolon
 %type <nodeList> stmt_list
 %%
 
@@ -329,11 +329,18 @@ simple_stmt:
                                             $$->dataType = DataType::UNKNOWN; 
                                         }
     | array_reference '=' expr ';'      { 
-                                            Trace("Reduce: <array_reference> <';'> <'='> <expr> => <simple_stmt>"); 
+                                            Trace("Reduce: <array_reference> <'='> <expr> <';'> => <simple_stmt>"); 
                                             if($1->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if($3->isFunc) yyerror("cannot assign function");
-                                            if($3->isArray) yyerror("cannot assign array");                                            
+                                            if($1->isArray != $3->isArray) yyerror("one is array and the other is not");
+                                            if($1->isArray){
+                                                cout << "arr_ref = expr;" << endl;
+                                                vector<int> left = $1->arrayDims;
+                                                vector<int> right = $3->arrayDims;
+                                                if(left.size() != right.size()) yyerror("dimension not match");
+                                                if(left != right) yyerror("size of some dimension not match");
+                                            }                                        
                                             $$ = makeNode();
                                             $$->dataType = DataType::UNKNOWN; 
                                         } 
@@ -418,7 +425,14 @@ simple_stmt_without_semicolon:
                                             if($1->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if($3->isFunc) yyerror("cannot assign function");
-                                            if($3->isArray) yyerror("cannot assign array");                                            
+                                            if($1->isArray != $3->isArray) yyerror("one is array and the other is not");
+                                            if($1->isArray){
+                                                cout << "arr_ref = expr;" << endl;
+                                                vector<int> left = $1->arrayDims;
+                                                vector<int> right = $3->arrayDims;
+                                                if(left.size() != right.size()) yyerror("dimension not match");
+                                                if(left != right) yyerror("size of some dimension not match");
+                                            }                                        
                                             $$ = makeNode();
                                             $$->dataType = DataType::UNKNOWN; 
                                         } 
@@ -789,6 +803,7 @@ expr:
 
 
 // only return type and value of array reference
+// can do array slicing, e.g. int arr[2][3][4]; => arr[0] is allowed
 array_reference:
     ID array_dim_reference {
         Trace("Reduce: <ID> <array_dim_reference> => <array_reference>");
@@ -798,18 +813,21 @@ array_reference:
         if(entry == nullptr) yyerror(string("Identifier ") + $1 + " is not declared");
         if(!entry->isArray) yyerror(string("Identifier ") + $1 + " is not an array");
 
-        if(entry->arrayDims.size() != arr->size()) yyerror("dimension not match");
-        int numDim = arr->size();
-        // int index = 0; 
-        for(int i=0; i<numDim; i++){
+        if(entry->arrayDims.size() < arr->size()) yyerror("too many dimension of array reference");
+        int numDims = arr->size();
+        for(int i=0; i<numDims; i++){
             if((*arr)[i] < 0 || (*arr)[i] >= entry->arrayDims[i]) yyerror("index out of range");
-            // index *= entry->arrayDims[i];
-            // index += (*arr)[i];
         }
 
-        // only return datatype and value
         $$ = makeNode();
         $$->dataType = entry->dataType;
+        // array slicing, when not giving full dimension
+        if(entry->arrayDims.size() != numDims){
+            for(int i=numDims; i<entry->arrayDims.size(); i++){
+                $$->arrayDims.push_back(entry->arrayDims[i]);
+            }
+            $$->isArray = true;
+        }
     }
 ;
 

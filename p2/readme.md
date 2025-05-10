@@ -8,14 +8,30 @@
 
 
 ## parser 做了什麼
-if 支援 simple/block 以外的 stmt
+### 基本功能
+- [x] scalar data types: bool, float, int, string
+- [x] structured data type: array
+- [x] declaration: constant, variable, function, array
+- [x] statement: block, simple, expression, function invocation, loop, return
+- [x] main function checking
+- [x] dump symbol table after exiting scope
+
+
+
+### 額外功能
+- [x] if/if-else 支援 simple/block 以外的 stmt
+- [x] while/for/foreach 支援 simple/block 以外的 stmt
+- [x] array 可以被一個相同維度且相同大小的 array 賦值
+- [x] array slicing 可以, 也可以被一個相同維度且相同大小的 array 賦值
+- [x] 可以接受 `return ;`
+- [] 
 
 
 ## parser todo:
-* const 可以像 variable 用 id_list 宣告
-* 強制轉太
-* arr 和 variable 一起宣告
-* makefile 裡面包含 run 的腳本
+- [ ] const 可以像 variable 用 id_list 宣告
+- [ ] 強制轉態
+- [ ] arr 和 variable 一起宣告
+- [ ] makefile 裡面包含 run 的腳本
 
 
 

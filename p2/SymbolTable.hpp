@@ -18,6 +18,7 @@ public:
     vector<string> identifiers; // for insert order
 
     SymbolTable();
+    ~SymbolTable();
     AstNode* lookup(string s);
     bool insert(AstNode entry);
     void dump();

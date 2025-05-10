@@ -12,6 +12,14 @@ SymbolTable::SymbolTable(){
     this->parent = nullptr;
 }
 
+SymbolTable::~SymbolTable(){
+    // free memory
+    for(SymbolTable* child : children){
+        delete child;
+    }
+}
+
+
 
 AstNode* SymbolTable::lookup(string s) {
     auto it = table.find(s);

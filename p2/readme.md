@@ -18,7 +18,7 @@ make clean
 
 
 
-## scanner 改了什麼
+## scanner 改動
 1. 引入 `y.tab.hpp`，使用 token 的 define
 2. 根據讀到的 token 回傳相對應的 token 
 3. token 不輸出

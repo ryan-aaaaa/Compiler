@@ -963,5 +963,7 @@ int main(int argc, char* argv[]) {
 
     cout << endl << "global Symbol Table: ";
     sbt->dump();
+
+    delete sbt; // free
     return 0;
 }

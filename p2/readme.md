@@ -50,10 +50,3 @@ make clean
 
 
 
-
-# What to Submit
-* revised version of your lex scanner
-* a file describing what changes you have to make to your scanner your yacc parser
-*  Note: comments must be added to describe statements in your program
-* Makefile
-* test programs

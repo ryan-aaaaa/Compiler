@@ -8,8 +8,14 @@ parser: lex.yy.cpp y.tab.cpp SymbolTable.cpp AST.cpp
 lex.yy.cpp: scanner.l
 	flex -o lex.yy.cpp scanner.l
 
-y.tab.cpp y.tab.hpp: parser.y SymbolTable.hpp
+y.tab.cpp y.tab.hpp: parser.y SymbolTable.hpp AST.hpp
 	yacc -d -y -o y.tab.cpp parser.y
+
+basic_test: parser
+	./parser test/basic.sd
+
+extra_test: parser
+	./parser test/extra.sd
 
 clean:
 	rm -f parser lex.yy.cpp y.tab.cpp y.tab.hpp *.out

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <string>
 
+// extern
 extern FILE* yyin;
 extern int yylex();
 extern int linenum;
@@ -85,27 +86,32 @@ void yyerror(string s);
 %type <nodeList> stmt_list
 %%
 
-// program
+/* program: consists of a list of declarations */
 program:
     decl_list { Trace("Reduce: <decl_list> => <program>"); }
 ;
 
 
-// declaration list
+/* declaration list: can be empty or consists of multiple declaration */
 decl_list:
       /* empty */   
     | decl_list decl  { Trace("Reduce: <decl_list> <decl> => <decl_list>"); }
 ; 
 
 
-// declaration
+/* declaration: a single declaration, can be be a constant, variable, or function declaration */
 decl:
       constant_decl   { Trace("Reduce: <constant_decl> => <decl>"); }
-    | variable_decl   { Trace("Reduce: <variable_decl => <decl>"); }
+    | variable_decl   { Trace("Reduce: <variable_decl> => <decl>"); }
     | function_decl   { Trace("Reduce: <function_decl> => <decl>"); }
 ;
 
-// constant declaration
+
+/* 
+ * constant_decl: 
+ * constant declartion, must begin with const keyword,  
+ * and each identifer need to be initialized when declared
+*/
 constant_decl:
     CONST data_type identifier_list ';' {
         Trace("Reduce: <CONST> <data_type> <identifier_list> <';'> => <constant_decl>");
@@ -116,14 +122,20 @@ constant_decl:
             if(!node->isConst) yyerror("not constant expression");
 
             node->dataType = $2;
-            node->isConst = true; // constant is const
-            bool success = sbt->insert(*node);
+            node->isConst = true;  // constant is const
+
+            // check existence
+            bool success = sbt->insert(*node); 
             if(!success) yyerror("redefinition of " + node->name);
         }
     }
 ;
 
-// variable declaration
+/* 
+ * variable_decl: 
+ * variable declaration. Identifier initialization is optional
+ * array declarations are also included in this grammar
+ */
 variable_decl:
     data_type identifier_list ';' {
         Trace("Reduce: <data_type> <identifier_list> <';'> => <variable_decl>");
@@ -135,19 +147,21 @@ variable_decl:
             } 
             node->dataType = $1;
             node->isConst = false; // variable is not const
+
+            // check existence
             bool success = sbt->insert(*node);
             if(!success) yyerror("redefinition of " + node->name);
         }
     }
 ;
 
-// array dimension declaration
+/* array_dim_decl: handles array dimension declarations */
 array_dim_decl:
       array_dim_decl '[' INT_VAL']'  { $1->push_back($3); $$ = $1; }
     | '[' INT_VAL ']'  { $$ = new vector<int>(); $$->push_back($2); }
 ;
 
-// identifier list
+/* identifier list: contain one or more identifier declaration */
 identifier_list:
       identifier_list ',' identifier_decl   {   
                                                 Trace("Reduce: <identifier_list> <','> <identifier_decl> => <identifier_list>");
@@ -161,7 +175,7 @@ identifier_list:
                                             }
 ;
 
-// identifier declaration
+/* identifier declaration: can be identifier, identifier with initial value or array declaration */
 identifier_decl:
       ID '=' expr       {   
                             Trace("Reduce: <ID> <'='> <expr> => <identifier_decl>");
@@ -189,7 +203,11 @@ identifier_decl:
 
 
 
-// function declaration
+/* 
+ * function_decl: 
+ * A function consists of a return type, a ID,
+ * an optional parameter list, and a block of statements as the function body
+ */
 function_decl:
     data_type ID '(' optional_param_list ')' {
         Trace("Reduce: <data_type> <ID> <'('> <optional_param_list> ) <')'> <block_stmt> => <function_decl>");
@@ -215,19 +233,19 @@ function_decl:
 ;
 
 
-// option parameter list
+/* optional_param_list: handles the parameter list for a function declaration, may be empty */
 optional_param_list:
       /* empty */   { Trace("Reduce: <empty> => <optional_param_list>");  $$ = new vector<AstNode*>(); }
     | param_list    { Trace("Reduce: <param_list> => <optional_param_list>");  $$ = $1; }
 ;
 
-// parameter list
+/* parameter list: contains one or more parameters */
 param_list:
       param_list ',' param  { Trace("Reduce: <param_list> <,> <param> => <param_list>"); $1->push_back($3); $$ = $1; }
     | param   { Trace("Reduce: <param> => <param_list>"); $$ = new vector<AstNode*>(); $$->push_back($1); }             
 ;
 
-// parameter
+/* parameter: single parameter, can be scalar type or structured type */
 param:
       data_type ID  {
                         Trace("Reduce: <data_type> <ID> => <param>");
@@ -249,7 +267,7 @@ param:
 
 
 
-// statement list
+/* statement list: consists of zero of more statement*/
 stmt_list:
       /* empty */    { Trace("Reduce: <empty> => <stmt_list>"); $$ = new vector<AstNode*>(); }
     | stmt_list stmt {
@@ -260,7 +278,7 @@ stmt_list:
 ;
 
 
-// statement
+/* statement: can be statement or constant, variable declaration */
 stmt:
       block_stmt        { Trace("Reduce: <block_stmt> => <stmt>"); $$ = $1; }
     | simple_stmt       { Trace("Reduce: <simple_stmt> => <stmt>"); $$ = $1; }
@@ -271,9 +289,14 @@ stmt:
     | variable_decl     { Trace("Reduce: <variable_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
 ;
 
-// block statement
+
+/* block statement: uses '{' and '}' to group multiple statements together */
 block_stmt:
-      '{'   { enterScope(); 
+      '{'   { 
+                // enter scope
+                enterScope(); 
+
+                // check whether is a function declaration block
                 if(inFunction){
                     for(AstNode* node : fuctnionParam){
                         bool success = sbt->insert(*node);
@@ -286,6 +309,7 @@ block_stmt:
       stmt_list 
       '}' {
             Trace("Reduce: <'{'> <stmt_list> <'}'> => <block_stmt>");
+            // all statements must have the same return type, excluding unknown return type
             DataType returnType = DataType::UNKNOWN;
             for(AstNode* node : *$3){
                 if(node->dataType == DataType::UNKNOWN) continue;
@@ -294,12 +318,14 @@ block_stmt:
             }
             $$ = makeNode();
             $$->dataType = returnType;  
+
+            // exit scope
             exitScope();
       }
 ;
 
 
-// simple statement
+/* simple statement: basic statement that will not return */
 simple_stmt:
       /* empty */ ';'                   { Trace("Reduce: <empty> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     |  expr ';'                         { Trace("Reduce: <expr> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
@@ -389,8 +415,7 @@ simple_stmt:
                                          }            
 ;
 
-
-// simple statement witout semicolon
+/* simple statement witout semicolon: same as simple statement but has no semicolon */
 simple_stmt_without_semicolon:
       /* empty */                       { Trace("Reduce: <empty> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     | expr                              { Trace("Reduce: <expr> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
@@ -482,16 +507,21 @@ simple_stmt_without_semicolon:
 ;
 
 
-// condition statement
+/* 
+ * condition statement:  
+ * if/if-else statement, expression in expr must be boolean expression,
+ * return of if and else cannot be different
+*/
 condition_stmt:
       IF '(' expr ')' stmt   %prec LOWER_THAN_ELSE   {
-            Trace("Reduce: <IF> <'('> <expr> <')'> <simple_or_block_stmt> => <condition_stmt>"); 
+            Trace("Reduce: <IF> <'('> <expr> <')'> <stmt> => <condition_stmt>"); 
             if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
             $$ = makeNode($5); // return type of statement
         }
     | IF '(' expr ')' stmt ELSE stmt  {
-        Trace("Reduce: <IF> <'('> <expr> <')'> <simple_or_block_stmt> <ELSE> <simple_or_block_stmt> => <condition_stmt>"); 
+        Trace("Reduce: <IF> <'('> <expr> <')'> <stmt> <ELSE> <stmt> => <condition_stmt>"); 
         if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
+        // return type of statement
         if($5->dataType == $7->dataType) $$ = makeNode($5);
         else if($5->dataType == DataType::UNKNOWN) $$ = makeNode($7);
         else if($7->dataType == DataType::UNKNOWN) $$ = makeNode($5);
@@ -506,7 +536,7 @@ condition_stmt:
 // ;
 
 
-// loop statement 
+/* loop statement: */
 loop_stmt:
       WHILE '(' expr ')' stmt {
             Trace("Reduce: <WHILE> <'('> <expr> <')'> <simple_or_block_stmt> => <loop_stmt>"); 
@@ -529,8 +559,7 @@ loop_stmt:
     }
 ;
 
-
-// numeric
+/* numeric: number use in foreach statement, must be integer ID or integer constant val*/
 numeric:
      ID  {
             Trace("Reduce: <ID> => <numeric>")
@@ -545,19 +574,23 @@ numeric:
 ;
 
 
-// return statement
+/* return statement: return a expression with known type or return nothing with void type*/
 return_stmt:
       RETURN ';'       { Trace("Reduce: <return> <';'> => <return_stmt>"); $$ = makeNode(); $$->dataType = DataType::VOID_T;}
     | RETURN expr ';'  { Trace("Reduce: <return> <expr> <';'> => <return_stmt>"); $$ = makeNode($2);}       
 ;
 
 
-// expression
+/* 
+ * expression: 
+ * relational expression, arthimetic expression, function invocation,
+ * increasement, decreasement, array reference, identifier, literal
+ */
 expr:
       expr LOGICAL_AND expr         { 
                                         Trace("Reduce: <expr> <LOGICAL_AND> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use &&");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use &&");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use &&");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode();
@@ -566,8 +599,8 @@ expr:
                                     } 
     | expr LOGICAL_OR expr          {   
                                         Trace("Reduce: <expr> <LOGICAL_OR> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use ||");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use ||");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use ||");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode(); 
@@ -576,8 +609,8 @@ expr:
                                     }    
     | '!' expr                      { 
                                         Trace("Reduce: <'!'> <expr> => expr"); 
-                                        if($2->isArray) yyerror("array cannot use !");
                                         if($2->isFunc) yyerror("function cannot use !");
+                                        if($2->isArray) yyerror("array cannot use !");
                                         if($2->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode();
                                         $$->dataType = DataType::BOOL_T;
@@ -585,9 +618,9 @@ expr:
                                     }
     | expr '<' expr                 {
                                         Trace("Reduce: <expr> <'<'> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use <");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use <");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use <");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot use <");
                                         }
@@ -597,9 +630,9 @@ expr:
                                     } 
     | expr '>' expr                 {
                                         Trace("Reduce: <expr> <'>'> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use >");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use >");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use >");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot use >");
                                         }
@@ -609,9 +642,9 @@ expr:
                                     } 
     | expr LE  expr                 {
                                         Trace("Reduce: <expr> <LE> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use <=");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use <=");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use <=");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot use <=");
                                         }
@@ -621,9 +654,9 @@ expr:
                                     }  
     | expr GE  expr                 {
                                         Trace("Reduce: <expr> <GE> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray || $3->isArray) yyerror("array cannot use >=");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use >=");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot use >=");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot use >=");
                                         }
@@ -633,9 +666,9 @@ expr:
                                     } 
     | expr EQ  expr                 {
                                         Trace("Reduce: <expr> <EQ> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray != $3->isArray) yyerror("one is array and the other is not");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use ==");
+                                        if($1->isArray != $3->isArray) yyerror("one is array and the other is not");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->isArray && $1->arrayDims.size() != $3->arrayDims.size()) yyerror("dimension not match");
                                         $$ = makeNode();
                                         $$->dataType = DataType::BOOL_T;
@@ -643,9 +676,9 @@ expr:
                                     }  
     | expr NEQ expr                 {
                                         Trace("Reduce: <expr> <NEQ> <expr> => <expr>"); 
-                                        if($1->dataType != $3->dataType) yyerror("type not match");
-                                        if($1->isArray != $3->isArray) yyerror("one is an array and the other is not");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot use !=");
+                                        if($1->isArray != $3->isArray) yyerror("one is an array and the other is not");
+                                        if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->isArray && $1->arrayDims.size() != $3->arrayDims.size()) yyerror("dimension not match");
                                         $$ = makeNode();
                                         $$->dataType = DataType::BOOL_T;
@@ -653,6 +686,7 @@ expr:
                                     }  
     | expr '+' expr                 {
                                         Trace("Reduce: <expr> <'+'> <expr> => <expr>"); 
+                                        if($1->isFunc || $3->isFunc) yyerror("function cannot add");
                                         if($1->isArray || $3->isArray) yyerror("array cannot add");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T || $1->dataType == DataType::STRING_T)){
@@ -664,8 +698,8 @@ expr:
                                     }  
     | expr '-' expr                 {
                                         Trace("Reduce: <expr> <'-'> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot sub");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot sub");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot sub");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot sub");
@@ -676,8 +710,8 @@ expr:
                                     } 
     | expr '*' expr                 {
                                         Trace("Reduce: <expr> <'*'> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot mul");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot mul");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot mul");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot mul");
@@ -688,8 +722,8 @@ expr:
                                     }     
     | expr '/' expr                 {
                                         Trace("Reduce: <expr> <'/'> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot div");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot div");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot div");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T || $1->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot div");
@@ -700,8 +734,8 @@ expr:
                                     } 
     | expr '%' expr                 {
                                         Trace("Reduce: <expr> <'%'> <expr> => <expr>"); 
-                                        if($1->isArray || $3->isArray) yyerror("array cannot mod");
                                         if($1->isFunc || $3->isFunc) yyerror("function cannot mod");
+                                        if($1->isArray || $3->isArray) yyerror("array cannot mod");
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if(!($1->dataType == DataType::INT_T)){
                                             yyerror(getTypeStr($1->dataType) + " type cannot mod");
@@ -712,9 +746,9 @@ expr:
                                     } 
     | INC expr  %prec PREFIX_INC    {
                                         Trace("Reduce: <INC> <expr> => <expr>"); 
-                                        if($2->name == "") yyerror("only identifier can INC");
-                                        if($2->isArray) yyerror("array cannot INC");
                                         if($2->isFunc) yyerror("function cannot INC");
+                                        if($2->isArray) yyerror("array cannot INC");
+                                        if($2->name == "") yyerror("only identifier can INC");
                                         if(!($2->dataType == DataType::INT_T || $2->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($2->dataType) + " type cannot INC");
                                         }
@@ -722,9 +756,9 @@ expr:
                                     }
     | DEC expr  %prec PREFIX_DEC    {
                                         Trace("Reduce: <DEC> <expr> => <expr>"); 
-                                        if($2->name == "") yyerror("only identifier can DEC");
-                                        if($2->isArray) yyerror("array cannot DEC");
                                         if($2->isFunc) yyerror("function cannot DEC");
+                                        if($2->isArray) yyerror("array cannot DEC");
+                                        if($2->name == "") yyerror("only identifier can DEC");
                                         if(!($2->dataType == DataType::INT_T || $2->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($2->dataType) + " type cannot DEC");
                                         }
@@ -732,8 +766,8 @@ expr:
                                     } 
     | '+' expr  %prec UPLUS         {
                                         Trace("Reduce: <'+'> <expr> => <expr>"); 
-                                        if($2->isArray) yyerror("array cannot be pos");
                                         if($2->isFunc) yyerror("function cannot be pos");
+                                        if($2->isArray) yyerror("array cannot be pos");
                                         if(!($2->dataType == DataType::INT_T || $2->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($2->dataType) + " type cannot be pos");
                                         }
@@ -741,8 +775,8 @@ expr:
                                     } 
     | '-' expr  %prec UMINUS        {
                                         Trace("Reduce: <'-'> <expr> => <expr>"); 
-                                        if($2->isArray) yyerror("array cannot be neg");
                                         if($2->isFunc) yyerror("function cannot be neg");
+                                        if($2->isArray) yyerror("array cannot be neg");
                                         if(!($2->dataType == DataType::INT_T || $2->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr($2->dataType) + " type cannot be neg");
                                         }
@@ -755,17 +789,17 @@ expr:
                                         if(fn == nullptr) yyerror(string("Function ") + $1 + " is not declared");
                                         if(!fn->isFunc) yyerror(string("Identifier ") + $1 + " is not a fucntion");
                                         vector<AstNode*>* argList = $3;
-                                        if(fn->paramList.size() != argList->size()) yyerror("arg count not match.");
+                                        if(fn->paramList.size() != argList->size()) yyerror("arg count not match");
                             
-                                        // check whether args are valid
+                                        // check whether all args are valid
                                         int numArgs = fn->paramList.size();
                                         for(int i=0; i<numArgs; i++){
                                             AstNode* param = fn->paramList[i];
                                             AstNode* arg = (*argList)[i];
+                                            if(arg->isFunc) yyerror("arg is function");
                                             if(!(param->dataType == arg->dataType && param->isArray == arg->isArray)){        
                                                 yyerror("arg type not match");
                                             }
-                                            if(arg->isFunc) yyerror("arg is function");
                                             if(param->isArray && arg->isArray){
                                                 vector<int> pArrayDims = fn->paramList[i]->arrayDims;
                                                 vector<int> aArrayDims = arg->arrayDims;                                                
@@ -795,8 +829,7 @@ expr:
 
 
 
-// only return type and value of array reference
-// can do array slicing, e.g. int arr[2][3][4]; => arr[0] is allowed
+/* array reference: array reference of declared array identifier, array slicing is allowed */
 array_reference:
     ID array_dim_reference {
         Trace("Reduce: <ID> <array_dim_reference> => <array_reference>");
@@ -825,7 +858,7 @@ array_reference:
 ;
 
 
-// array dimension reference
+/* array dimension reference: handle the dimensions of an array identifier*/
 array_dim_reference:
       '[' expr ']'                      { 
                                             Trace("Reduce: <'['> <expr> <']'> => <array_dim_reference>");
@@ -842,24 +875,24 @@ array_dim_reference:
 ;
 
 
-// optional argument list
+/* optional arg list: handles the argument list for a function invocation, may be empty */
 optional_arg_list:
       /* empty */  { Trace("Reduce: <empty> => <optional_arg_list>"); $$ = new vector<AstNode*>(); }
     | arg_list     { Trace("Reduce: <arg_list> => <optional_arg_list>"); $$ = $1; }
 ;
 
-// argument list
+/* argument list: contains one or more arguments */
 arg_list:
       arg_list ',' arg  { Trace("Reduce: <arg_list> <','> <arg> => <arg_list>"); $1->push_back($3); $$ = $1; }  
     | arg               { Trace("Reduce: <arg> => <arg_list>"); $$ = new vector<AstNode*>(); $$->push_back($1); }          
 ;
 
-// argument
+/* argument: single argument, can be an expression */
 arg:
     expr     { Trace("Reduce: <expr> => <arg>"); $$ = $1; }
 ;
 
-// literal
+/* literal: constant value directly given by input program */
 literal:
       TRUE             { Trace("Reduce: true => <literal>"); $$ = makeNode(); $$->dataType = DataType::BOOL_T;   $$->isConst = true; $$->bVal = true; }
     | FALSE            { Trace("Reduce: false => <literal>") ;$$ = makeNode(); $$->dataType = DataType::BOOL_T;   $$->isConst = true; $$->bVal = false; }
@@ -868,7 +901,7 @@ literal:
     | FLOAT_VAL        { Trace("Reduce: <FLOAT_VAL: " + to_string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::FLOAT_T;  $$->isConst = true; $$->dVal = $1; }  
 ;                       
 
-// data type
+/* data type: all the data type of the sD programming language */
 data_type:
       VOID_TYPE       { Trace("Reduce: void => <data_type>");    $$ = DataType::VOID_T;   }
     | BOOL_TYPE       { Trace("Reduce: bool => <data_type>");    $$ = DataType::BOOL_T;   }

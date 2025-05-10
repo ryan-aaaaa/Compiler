@@ -102,7 +102,6 @@ decl_list:
 decl:
       constant_decl   { Trace("Reduce: <constant_decl> => <decl>"); }
     | variable_decl   { Trace("Reduce: <variable_decl => <decl>"); }
-    | array_decl      { Trace("Reduce: <array_decl> => <decl>");    }
     | function_decl   { Trace("Reduce: <function_decl> => <decl>"); }
 ;
 
@@ -142,25 +141,6 @@ variable_decl:
     }
 ;
 
-
-// array declaration
-array_decl:
-    data_type ID array_dim_decl ';' {
-        Trace("Reduce: <data_type> <ID> <array_dim_decl> <';'> => <array_decl>");
-        if($1 == DataType::VOID_T) yyerror("void type is not allowed");
-        AstNode* entry = makeNode();
-        entry->isArray = true;
-        entry->dataType = $1;
-        entry->name = $2;
-        for(int& dim : *$3){
-            if(dim < 1) yyerror("dimension < 1");
-            entry->arrayDims.push_back(dim);
-        }
-        bool success = sbt->insert(*entry);
-        if(!success) yyerror("redefinition of " + entry->name);
-    }
-;
-
 // array dimension declaration
 array_dim_decl:
       array_dim_decl '[' INT_VAL']'  { $1->push_back($3); $$ = $1; }
@@ -183,17 +163,28 @@ identifier_list:
 
 // identifier declaration
 identifier_decl:
-      ID '=' expr   {   
-                        Trace("Reduce: <ID> <'='> <expr> => <identifier_decl>");
-                        $$ = makeNode($3);
-                        $$->name = $1;
-                    }
+      ID '=' expr       {   
+                            Trace("Reduce: <ID> <'='> <expr> => <identifier_decl>");
+                            $$ = makeNode($3);
+                            $$->name = $1;
+                        }
 
-    | ID            { 
-                        Trace("Reduce: <ID> => <identifier_decl>");
-                        $$ = makeNode();
-                        $$->name = $1;
-                    }
+    | ID                { 
+                            Trace("Reduce: <ID> => <identifier_decl>");
+                            $$ = makeNode();
+                            $$->name = $1;
+                        }
+
+    | ID array_dim_decl {
+                            Trace("Reduce: <ID> <array_dim_decl> => <identifier_decl>");
+                            $$ = makeNode();
+                            $$->name = $1;
+                            $$->isArray = true;
+                            for(int& dim : *$2){
+                                if(dim < 1) yyerror("dimension < 1");
+                                $$->arrayDims.push_back(dim);
+                            }
+                        }
 ;
 
 
@@ -278,7 +269,6 @@ stmt:
     | return_stmt       { Trace("Reduce: <return_stmt> => <stmt>"); $$ = $1; }
     | constant_decl     { Trace("Reduce: <constant_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
     | variable_decl     { Trace("Reduce: <variable_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
-    | array_decl        { Trace("Reduce: <array_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }   
 ;
 
 // block statement

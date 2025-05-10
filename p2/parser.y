@@ -106,17 +106,21 @@ decl:
     | function_decl   { Trace("Reduce: <function_decl> => <decl>"); }
 ;
 
-// constant declartion 
+// constant declaration
 constant_decl:
-    CONST data_type ID '=' expr ';'  { 
-        Trace("Reduce: <CONST> <data_type> <ID> <'='> <expr> <';'> => <constant_decl>");
-        if($2 != $5->dataType) yyerror("datatype of expr is wrong");
+    CONST data_type identifier_list ';' {
+        Trace("Reduce: <CONST> <data_type> <identifier_list> <';'> => <constant_decl>");
         if($2 == DataType::VOID_T) yyerror("void type is not allowed");
-        if(!$5->isConst) yyerror("not constant expression");
-        AstNode* entry = makeNode($5);
-        entry->name = $3;
-        bool success = sbt->insert(*entry);
-        if(!success) yyerror("redefinition of " + entry->name);
+        for(AstNode* node : *$3){
+            if(node->dataType == DataType::UNKNOWN) yyerror("constant not initialize");
+            if($2 != node->dataType) yyerror("datatype of expr is wrong");
+            if(!node->isConst) yyerror("not constant expression");
+
+            node->dataType = $2;
+            node->isConst = true; // constant is const
+            bool success = sbt->insert(*node);
+            if(!success) yyerror("redefinition of " + node->name);
+        }
     }
 ;
 

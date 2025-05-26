@@ -7,9 +7,19 @@ make
 ```
 
 ## run
+### 執行指令
 ```
-./parser example.sd
+./parser <example.sd>
 ```
+### 基本功能測試
+```
+make basic_test
+```
+### 額外功能測試
+```
+make extra_test
+```
+
 
 ## clean 
 ```

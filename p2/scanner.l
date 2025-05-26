@@ -1,7 +1,7 @@
 %{
 #define LIST     strcat(buf, yytext)
 
-int tokenFlag = false;
+int tokenFlag = true;
 
 #define token(t) {LIST;  if(tokenFlag) printf("<%s>\n", t);}
 #define tokenInteger(t, i) {LIST;  if(tokenFlag) printf("<%s: %d>\n", t, i);} 
@@ -40,7 +40,8 @@ whitespace [ \t]+
 "]"      {token("']'"); return ']';}
 "{"      {token("'{'"); return '{';}
 "}"      {token("'}'"); return '}';}
-   
+".."     {token("'..'"); return RANGE_OP;}
+
 
 "extern"   {token("EXTERN"); return EXTERN;}
 "const"    {token("CONST"); return CONST;}   

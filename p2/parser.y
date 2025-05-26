@@ -65,6 +65,7 @@ void yyerror(string s);
 %token <doubleVal> FLOAT_VAL
 
 %token <strVal> ID
+%token RANGE_OP  
 %token TRUE FALSE
 %token EXTERN CONST VOID_TYPE CHAR_TYPE STRING_TYPE BOOL_TYPE INT_TYPE FLOAT_TYPE DOUBLE_TYPE
 %token IF ELSE SWITCH CASE DEFAULT
@@ -549,13 +550,13 @@ loop_stmt:
         if($5->dataType != DataType::BOOL_T) yyerror("not boolean expression");
         $$ = makeNode($9); // return type of statement
     }            
-    | FOREACH '(' ID ':' numeric '.' '.' numeric ')' stmt {
-        Trace("Reduce: <FOREACH> <'('> <ID> <':'> <numeric> <'.'> <'.'> <numeric> <)> <simple_or_block_stmt> => <loop_stmt>"); 
+    | FOREACH '(' ID ':' numeric RANGE_OP numeric ')' stmt {
+        Trace("Reduce: <FOREACH> <'('> <ID> <':'> <numeric> <RANGE_OP> <numeric> <)> <simple_or_block_stmt> => <loop_stmt>"); 
         AstNode* entry = sbt->lookup($3);
         if(entry == nullptr) yyerror(string("ID ") + $3 + " is not declared");
         if(entry->isArray) yyerror("identifier " + entry->name + " is array");
         if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-        $$ = makeNode($10); // return type of statement
+        $$ = makeNode($9); // return type of statement
     }
 ;
 

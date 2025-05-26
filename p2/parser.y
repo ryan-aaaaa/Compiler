@@ -25,6 +25,7 @@ bool traceFlag = false;
 // for function parameter 
 bool inFunction = false;
 vector<AstNode*> fuctnionParam; 
+bool alreadyEnterScope = false;
 
 // scope and symbol table
 SymbolTable* sbt = nullptr; // global symbol table pointer
@@ -83,7 +84,7 @@ void yyerror(string s);
 %type <nodeList> arg_list optional_arg_list
 %type <node> param 
 %type <nodeList> param_list optional_param_list
-%type <node> stmt block_stmt return_stmt simple_stmt condition_stmt loop_stmt simple_stmt_without_semicolon
+%type <node> stmt scoped_stmt block_stmt return_stmt simple_stmt condition_stmt loop_stmt simple_stmt_without_semicolon
 %type <nodeList> stmt_list
 %%
 
@@ -223,13 +224,18 @@ function_decl:
         bool success = sbt->insert(*entry);
         if(!success) yyerror("redefinition of " + entry->name);
 
-        inFunction = true;
-        fuctnionParam = *$4;
+        // enter scope
+        enterScope();
+        for(AstNode* param : *$4){
+            bool success = sbt->insert(*param);
+            if(!success) yyerror("redefinition of " + param->name);
+        }
     }
-    
     block_stmt {
         if($7->dataType == DataType::UNKNOWN) $7->dataType = DataType::VOID_T;
         if($1 != $7->dataType) yyerror("Wrong return type, " + getTypeStr($1) + " and " + getTypeStr($7->dataType));
+        // exit scope
+        exitScope();
     }
 ;
 
@@ -281,6 +287,18 @@ stmt_list:
 
 /* statement: can be statement or constant, variable declaration */
 stmt:
+      enter_scope block_stmt exit_scope { Trace("Reduce: <block_stmt> => <stmt>"); $$ = $2; }
+    | simple_stmt       { Trace("Reduce: <simple_stmt> => <stmt>"); $$ = $1; }
+    | condition_stmt    { Trace("Reduce: <condition_stmt> => <stmt>"); $$ = $1; }
+    | loop_stmt         { Trace("Reduce: <loop_stmt> => <stmt>"); $$ = $1; }
+    | return_stmt       { Trace("Reduce: <return_stmt> => <stmt>"); $$ = $1; }
+    | constant_decl     { Trace("Reduce: <constant_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
+    | variable_decl     { Trace("Reduce: <variable_decl> => <stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
+;
+
+
+/* scoped statement: for if-else and loop stmt, can be statement or constant, variable declaration */
+scoped_stmt:
       block_stmt        { Trace("Reduce: <block_stmt> => <stmt>"); $$ = $1; }
     | simple_stmt       { Trace("Reduce: <simple_stmt> => <stmt>"); $$ = $1; }
     | condition_stmt    { Trace("Reduce: <condition_stmt> => <stmt>"); $$ = $1; }
@@ -293,35 +311,17 @@ stmt:
 
 /* block statement: uses '{' and '}' to group multiple statements together */
 block_stmt:
-      '{'   { 
-                // enter scope
-                enterScope(); 
-
-                // check whether is a function declaration block
-                if(inFunction){
-                    for(AstNode* node : fuctnionParam){
-                        bool success = sbt->insert(*node);
-                        if(!success) yyerror("redefinition of " + node->name);
-                    }
-                }
-                fuctnionParam.clear();
-                inFunction = false;
-            }
-      stmt_list 
-      '}' {
+      '{' stmt_list  '}' {
             Trace("Reduce: <'{'> <stmt_list> <'}'> => <block_stmt>");
             // all statements must have the same return type, excluding unknown return type
             DataType returnType = DataType::UNKNOWN;
-            for(AstNode* node : *$3){
+            for(AstNode* node : *$2){
                 if(node->dataType == DataType::UNKNOWN) continue;
                 if(returnType == DataType::UNKNOWN) returnType = node->dataType;
                 if(returnType != node->dataType) yyerror("Too many return type" + getTypeStr(returnType));
             }
             $$ = makeNode();
             $$->dataType = returnType;  
-
-            // exit scope
-            exitScope();
       }
 ;
 
@@ -514,18 +514,18 @@ simple_stmt_without_semicolon:
  * return of if and else cannot be different
 */
 condition_stmt:
-      IF '(' expr ')' stmt   %prec LOWER_THAN_ELSE   {
+      IF '(' expr ')' enter_scope scoped_stmt exit_scope %prec LOWER_THAN_ELSE   {
             Trace("Reduce: <IF> <'('> <expr> <')'> <stmt> => <condition_stmt>"); 
             if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
-            $$ = makeNode($5); // return type of statement
+            $$ = makeNode($6); // return type of statement
         }
-    | IF '(' expr ')' stmt ELSE stmt  {
+    | IF '(' expr ')' enter_scope scoped_stmt exit_scope ELSE enter_scope scoped_stmt exit_scope {
         Trace("Reduce: <IF> <'('> <expr> <')'> <stmt> <ELSE> <stmt> => <condition_stmt>"); 
         if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
         // return type of statement
-        if($5->dataType == $7->dataType) $$ = makeNode($5);
-        else if($5->dataType == DataType::UNKNOWN) $$ = makeNode($7);
-        else if($7->dataType == DataType::UNKNOWN) $$ = makeNode($5);
+        if($6->dataType == $10->dataType) $$ = makeNode($6);
+        else if($6->dataType == DataType::UNKNOWN) $$ = makeNode($10);
+        else if($10->dataType == DataType::UNKNOWN) $$ = makeNode($6);
         else yyerror("more than one return type");
     }            
 ;
@@ -539,24 +539,24 @@ condition_stmt:
 
 /* loop statement: */
 loop_stmt:
-      WHILE '(' expr ')' stmt {
+      WHILE '(' expr ')' enter_scope scoped_stmt exit_scope {
             Trace("Reduce: <WHILE> <'('> <expr> <')'> <simple_or_block_stmt> => <loop_stmt>"); 
             Trace("Reduce: <while_stmt> => <loop_stmt>"); 
             if($3->dataType != DataType::BOOL_T) yyerror("not boolean expression");
-            $$ = makeNode($5); // return type of statement
+            $$ = makeNode($6); // return type of statement
       }                       
-    | FOR '(' simple_stmt_without_semicolon ';' expr ';' simple_stmt_without_semicolon ')' stmt  {
+    | FOR '(' simple_stmt_without_semicolon ';' expr ';' simple_stmt_without_semicolon ')' enter_scope scoped_stmt exit_scope {
         Trace("Reduce: <FOR> <'('> <simple_stmt_without_semicolon> <';'> <expr> <';'> <simple_stmt_without_semicolon> <')'> <simple_or_block_stmt> => <loop_stmt>"); 
         if($5->dataType != DataType::BOOL_T) yyerror("not boolean expression");
-        $$ = makeNode($9); // return type of statement
+        $$ = makeNode($10); // return type of statement
     }            
-    | FOREACH '(' ID ':' numeric RANGE_OP numeric ')' stmt {
+    | FOREACH '(' ID ':' numeric RANGE_OP numeric ')' enter_scope scoped_stmt exit_scope {
         Trace("Reduce: <FOREACH> <'('> <ID> <':'> <numeric> <RANGE_OP> <numeric> <)> <simple_or_block_stmt> => <loop_stmt>"); 
         AstNode* entry = sbt->lookup($3);
         if(entry == nullptr) yyerror(string("ID ") + $3 + " is not declared");
         if(entry->isArray) yyerror("identifier " + entry->name + " is array");
         if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-        $$ = makeNode($9); // return type of statement
+        $$ = makeNode($10); // return type of statement
     }
 ;
 
@@ -909,6 +909,14 @@ data_type:
     | FLOAT_TYPE      { Trace("Reduce: float => <data_type>");   $$ = DataType::FLOAT_T;  }
     | INT_TYPE        { Trace("Reduce: int => <data_type>");     $$ = DataType::INT_T;    }
     | STRING_TYPE     { Trace("Reduce: string => <data_type>");  $$ = DataType::STRING_T; }
+;
+
+enter_scope:
+    /* empty */ { enterScope();}
+;
+
+exit_scope:
+    /* empty */ { exitScope();}
 ;
 %%
 

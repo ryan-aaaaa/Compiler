@@ -21,12 +21,6 @@ using namespace std;
 bool traceFlag = false;
 #define Trace(t) if(traceFlag) std::cout << t << std::endl;
 
-
-// for function parameter 
-bool inFunction = false;
-vector<AstNode*> fuctnionParam; 
-bool alreadyEnterScope = false;
-
 // scope and symbol table
 SymbolTable* sbt = nullptr; // global symbol table pointer
 void enterScope();

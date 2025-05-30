@@ -8,6 +8,15 @@ y.tab.*
 lex.yy.*
 parser
 
-p2/example/
+example/
 
 *.out
+
+javaa/
+jre*/
+
+
+p3/test/
+p3/*.class
+p3/*.jasm
+

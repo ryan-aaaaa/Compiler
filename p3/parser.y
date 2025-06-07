@@ -23,8 +23,10 @@ using namespace std;
 bool traceFlag = false;
 #define Trace(t) if(traceFlag) std::cout << t << std::endl;
 
+
 // scope and symbol table
 SymbolTable* sbt = nullptr; // global symbol table pointer
+bool printSbt = false;
 void enterScope();
 void exitScope();
 
@@ -33,6 +35,8 @@ CodeGenerator* codegen = nullptr;
 
 // yyerror
 void yyerror(string s);
+
+bool printJasm = true;
 %}
 
 %union {
@@ -105,7 +109,8 @@ decl_list:
 
 /* declaration: a single declaration, can be be a constant, variable, or function declaration */
 decl:
-      constant_decl   { Trace("Reduce: <constant_decl> => <decl>"); }
+      /* empty */ ';' 
+    | constant_decl   { Trace("Reduce: <constant_decl> => <decl>"); }
     | variable_decl   { Trace("Reduce: <variable_decl> => <decl>"); }
     | function_decl   { Trace("Reduce: <function_decl> => <decl>"); }
 ;
@@ -1078,22 +1083,24 @@ exit_scope:
 
 // enter new scope, new a symbol table
 void enterScope(){
-    cout << "\n> Enter new scope: " << endl;
+    if(printSbt){
+        cout << "\n> Enter new scope: " << endl;
+    }
     SymbolTable* newScope = new SymbolTable(false);
     newScope->parent = sbt;
     sbt->children.push_back(newScope);
     newScope->counter = sbt->counter;
     sbt = newScope;
-    codegen->enterScope();
 }
 
 
 // exit scope, dump symbol table
 void exitScope(){
-    cout << "\n> Exit current scope, dump symbol table: ";
-    sbt->dump();
+    if(printSbt){
+        cout << "\n> Exit current scope, dump symbol table: ";
+        sbt->dump();
+    }
     sbt = sbt->parent;
-    codegen->exitScope();
 }
 
 
@@ -1103,6 +1110,18 @@ void yyerror(string s) {
     exit(1);
 }
 
+
+string getClassName(string path){
+    int n = path.length();
+    int begin = n - 1;
+    while(begin >= 0 && path[begin] != '/') begin--;
+    begin++;
+    int len = 0;
+    while(path[begin + len] != '.'){
+        len++;
+    }
+    return path.substr(begin, len);
+}
 
 // main function
 int main(int argc, char* argv[]) {
@@ -1119,7 +1138,8 @@ int main(int argc, char* argv[]) {
 
     // start parsing
     sbt = new SymbolTable(true);
-    codegen = new CodeGenerator(argv[1]);
+    string className = getClassName(argv[1]);
+    codegen = new CodeGenerator(className);
     yyparse();
 
     // check main() 
@@ -1128,10 +1148,15 @@ int main(int argc, char* argv[]) {
     if(!mainFunc->isFunc) yyerror("main is not a function");
     if(mainFunc->dataType != DataType::VOID_T) yyerror("return type of main() is not void");
 
-    cout << endl << "global Symbol Table: ";
-    sbt->dump();
+    if(printSbt){
+        cout << endl << "global Symbol Table: ";
+        sbt->dump();
+    }
 
-    cout << codegen->dump() << endl;
+    string jasm = codegen->dump();
+    if(printJasm){
+        cout << jasm << endl;
+    }
 
     // free
     delete sbt; 

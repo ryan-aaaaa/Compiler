@@ -5,44 +5,35 @@ B11115030 陳毅恩
 ```
 make example
 ```
+## generate java byte code & run 
 ```
 make run
 ```
-
-
 ## clean 
 ```
 make clean
 ```
 
-
-## 問題
-1. foreach 沒了
-2. field 只能在最前面，是語言的限制嗎?
-3. foreach 
-4. max_locals 和 max_stack 可能會爆
-5. 宣告的左邊只能是 const value，應該為 expr <- 先做這個，應該完成了
-
-
-## 方法
-每個 stmt 都會被推入棧，當匹配到 stmt 的文法時，將棧頂的兩個 stmt 串接，再推回棧，對於 if-else, loop, function, 當匹配成功時，stmt 都會剛好在棧頂，在根據這三種語法將 stmt 內容包裝起來
-
-
 ## parser 改動
 1. 新增 CodeGenerator 物件，用來產生 jasm
 2. void function 可以不宣告資料型態
-3. 
+3. ast node 新增 code gen 需要的 attribute
 
 
 
+## method
+使用 stack 存放所有的 jasm，當所有程式碼被解析，stack 只會剩餘 generated jasm 一個元素 
+- expr: expr 會被建成 expr tree，在使用 dfs 生成對應的 jasm
+- stmt: 當解析到 stmt，生成對應的 jasm 並堆入 stack
+- stmt_list: 串接 stack top 的兩個 stmt 再推回 stack
+- declaration: 當解析到 stmt，生成對應的 jasm 並堆入 stack
+- program: 當解析到 program，產生 java class 做包裝
 
 
 
-## parser 功能
-### 基本功能
-- [x] scalar data types: bool, float, int, string
-- [x] structured data type: array
-- [x] declaration: constant, variable, function, array
-- [x] statement: block, simple, expression, function invocation, loop, return
-- [x] main function checking
-- [x] dump symbol table after exiting each scope
+## functionality
+- [x] initialization
+- [x] parsing declarations for constants and variables
+- [x] code generation for expressions and statements
+- [x] code generation for conditional statements and loops
+- [x] code generation for procedure calls

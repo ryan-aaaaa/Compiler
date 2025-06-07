@@ -8,26 +8,14 @@
 
 using namespace std;
 
-string CodeGenerator::getClassName(string path){
-    int n = path.length();
-    int begin = n - 1;
-    while(begin >= 0 && path[begin] != '/') begin--;
-    begin++;
-    int len = 0;
-    while(path[begin + len] != '.'){
-        len++;
-    }
-    return path.substr(begin, len);
-}
-
 CodeGenerator::CodeGenerator(){
     this->className = "unknown";
     this->jasmStk.clear();
     this->labelCounter = 0;
 }
 
-CodeGenerator::CodeGenerator(string path){
-    this->className = this->getClassName(path);
+CodeGenerator::CodeGenerator(string className){
+    this->className = className;
     this->jasmStk.clear();
     this->labelCounter = 0;
 }
@@ -44,13 +32,6 @@ string CodeGenerator::getNewLabel(){
 }
 
 
-void CodeGenerator::enterScope(){
-}
-
-void CodeGenerator::exitScope(){
-}
-
-
 void CodeGenerator::generateProgram(){
     string jasm = "";
     while(!this->jasmStk.empty()){
@@ -58,7 +39,7 @@ void CodeGenerator::generateProgram(){
         this->jasmStk.pop_back();
     }
     jasm = "class " + this->className + "\n{\n" + jasm + "}";
-    this->jasmStk.push_back(jasm);
+    this->jasmStk.push_back(jasm); // only one element in jasm stack
 }
 
 void CodeGenerator::generateVarDecl(AstNode* node){
@@ -108,7 +89,7 @@ void CodeGenerator::combineTopTwo(){
 //     if (!root) return;
 //     string pad(indent, ' ');
 //     cout << pad
-//          << getTypeStr(root->exprType)  // 或 node->name
+//          << getTypeStr(root->exprType)  
 //          << endl;
 //     for (AstNode* child : root->children) {
 //         print(child, indent + 2);
@@ -117,14 +98,13 @@ void CodeGenerator::combineTopTwo(){
 
 string CodeGenerator::exprDFS(AstNode* node){
     if(node->exprType == ExprType::EXPR_ID){
-        cout << "dsaf" << "\n" << node->name << endl;
         if(node->isConst){
             if(node->dataType == DataType::INT_T) return "sipush " + to_string(node->iVal) + "\n";
             if(node->dataType == DataType::BOOL_T) return "iconst_" + to_string(node->iVal) + "\n";
             if(node->dataType == DataType::STRING_T) return "ldc \"" + node->sVal + "\"\n";
         }
         if(node->isGlobal) return "getstatic int " + this->className + "." + node->name + "\n";
-        return "iload " + to_string(node->number) + "\n";
+        else return "iload " + to_string(node->number) + "\n";
     }
     if(node->exprType == ExprType::EXPR_LITERAL){
         if(node->dataType == DataType::INT_T) return "sipush " + to_string(node->iVal) + "\n";
@@ -170,12 +150,13 @@ string CodeGenerator::exprDFS(AstNode* node){
     if(node->exprType == ExprType::EXPR_MOD)  return prefix + "irem\n";
 
     string L1 = getNewLabel(), L2 = getNewLabel();
-    if(node->exprType == ExprType::EXPR_LT)  return prefix + "isub\niflt " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";   
-    if(node->exprType == ExprType::EXPR_GT)  return prefix + "isub\nifgt " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";  
-    if(node->exprType == ExprType::EXPR_LE)  return prefix + "isub\nifle " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";  
-    if(node->exprType == ExprType::EXPR_GE)  return prefix + "isub\nifge " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";  
-    if(node->exprType == ExprType::EXPR_EQ)  return prefix + "isub\nifeq " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";  
-    if(node->exprType == ExprType::EXPR_NEQ) return prefix + "isub\nifne " + L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";  
+    string suffix = L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";
+    if(node->exprType == ExprType::EXPR_LT)  return prefix + "isub\niflt " + suffix;   
+    if(node->exprType == ExprType::EXPR_GT)  return prefix + "isub\nifgt " + suffix;  
+    if(node->exprType == ExprType::EXPR_LE)  return prefix + "isub\nifle " + suffix;  
+    if(node->exprType == ExprType::EXPR_GE)  return prefix + "isub\nifge " + suffix;  
+    if(node->exprType == ExprType::EXPR_EQ)  return prefix + "isub\nifeq " + suffix;  
+    if(node->exprType == ExprType::EXPR_NEQ) return prefix + "isub\nifne " + suffix;  
     return "";
 }
 

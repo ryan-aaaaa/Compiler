@@ -8,16 +8,11 @@
 
 using namespace std;
 
-
-
 class CodeGenerator{
 public:
     CodeGenerator();
     CodeGenerator(string path);
     string dump();
-
-    void enterScope();
-    void exitScope();
 
     void generateProgram();
     
@@ -41,7 +36,6 @@ public:
 
 private:
     string className;
-    string getClassName(string path);
     string getNewLabel();
     vector<string> jasmStk;
     int labelCounter;

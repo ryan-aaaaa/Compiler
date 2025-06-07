@@ -20,8 +20,8 @@ public:
     void exitScope();
 
     void generateProgram();
-
-    void generateVarDecl(vector<AstNode*> nodes);
+    
+    void generateVarDecl(AstNode* node);
     void generateFuncDecl(AstNode* node);
 
     void insertEmpty();

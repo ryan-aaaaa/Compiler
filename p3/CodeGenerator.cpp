@@ -61,24 +61,17 @@ void CodeGenerator::generateProgram(){
     this->jasmStk.push_back(jasm);
 }
 
-void CodeGenerator::generateVarDecl(vector<AstNode*> nodes){
+void CodeGenerator::generateVarDecl(AstNode* node){
     string jasm = "";
-    for(AstNode* node: nodes){
-        if(node->isGlobal){
-            jasm += "field static int " + node->name;
-            if(node->isInit) jasm += " = " + to_string(node->iVal);
-            jasm += '\n';
-        }
-        else{
-            if(node->isInit){
-                jasm += "sipush " + to_string(node->iVal) + "\n";
-                jasm += "istore " + to_string(node->number) + "\n";
-            }
-            else{
-                jasm += "sipush 0\n";
-                jasm += "istore " + to_string(node->number) + "\n";                
-            }
-        }
+    if(node->isGlobal){
+        jasm += "field static int " + node->name;
+        if(node->isInit) jasm += " = " + to_string(node->iVal);
+        jasm += '\n';
+    }
+    else{
+        if(node->isInit) jasm += this->exprDFS(node->children[0]);
+        else jasm += "sipush 0\n";
+        jasm += "istore " + to_string(node->number) + "\n";
     }
     this->jasmStk.push_back(jasm);
 }
@@ -94,7 +87,7 @@ void CodeGenerator::generateFuncDecl(AstNode* node){
     }
     if(node->name == "main") wrapper += "java.lang.String[]";
     wrapper += ")\n";
-    wrapper += "max_stack 15\nmax_locals 15\n{\n";
+    wrapper += "max_stack 1000\nmax_locals 1000\n{\n";
     this->jasmStk.back() = wrapper + this->jasmStk.back();
     if(node->dataType == DataType::VOID_T) this->jasmStk.back() += "return\n";
     this->jasmStk.back() += "}\n";
@@ -105,12 +98,9 @@ void CodeGenerator::insertEmpty(){
 }
 
 void CodeGenerator::combineTopTwo(){
-    // cout << "top 2:" << endl << this->jasmStk[jasmStk.size() - 2] << endl;
-    // cout << "top 1:" << endl << this->jasmStk.back() << endl;
     string tmp = this->jasmStk.back();
     this->jasmStk.pop_back();
     this->jasmStk.back() += tmp;
-    // cout << "after:" << endl << jasmStk.back() << endl;
 }
 
 
@@ -127,6 +117,7 @@ void CodeGenerator::combineTopTwo(){
 
 string CodeGenerator::exprDFS(AstNode* node){
     if(node->exprType == ExprType::EXPR_ID){
+        cout << "dsaf" << "\n" << node->name << endl;
         if(node->isConst){
             if(node->dataType == DataType::INT_T) return "sipush " + to_string(node->iVal) + "\n";
             if(node->dataType == DataType::BOOL_T) return "iconst_" + to_string(node->iVal) + "\n";

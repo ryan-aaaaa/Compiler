@@ -126,7 +126,7 @@ constant_decl:
             if(!node->isConst) yyerror("not constant expression");
 
             node->dataType = $2;
-            node->isConst = true;  // constant is const
+            node->isConst = true;  // constant variable is const
 
             // check existence
             bool success = sbt->insert(node); 
@@ -144,9 +144,9 @@ variable_decl:
     data_type identifier_list ';' {
         Trace("Reduce: <data_type> <identifier_list> <';'> => <variable_decl>");
         if($1 == DataType::VOID_T) yyerror("void type is not allowed");
+        codegen->insertEmpty();
         for(AstNode* node : *$2){
             if(node->dataType != DataType::UNKNOWN){
-                // if(!node->isConst) yyerror("not constant expression");
                 if($1 != node->dataType) yyerror("datatype of expr is wrong");
             } 
             node->dataType = $1;
@@ -155,8 +155,9 @@ variable_decl:
             // check existence
             bool success = sbt->insert(node);
             if(!success) yyerror("redefinition of " + node->name);
+            codegen->generateVarDecl(node);
+            codegen->combineTopTwo();
         }
-        codegen->generateVarDecl(*$2);
     }
 ;
 
@@ -187,6 +188,7 @@ identifier_decl:
                             $$ = makeNode($3);
                             $$->name = $1;
                             $$->isInit = true;
+                            $$->children = {$3};
                         }
 
     | ID                { 
@@ -374,7 +376,7 @@ simple_stmt:
                                             Trace("Reduce: <ID> <'='> <expr> <';'> => <simple_stmt>"); 
                                             AstNode* entry = sbt->lookup($1);
                                             if(entry == nullptr) yyerror(string("Identifier ") + $1 + " is not declared");
-                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant");
+                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant variable");
                                             if(entry->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if(entry->isFunc) yyerror("function can not be assinged");
@@ -427,7 +429,7 @@ simple_stmt:
                                             if(entry == nullptr) yyerror(string("ID ") + $2 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             $$ = makeNode(); $$->dataType = DataType::UNKNOWN; 
                                         } 
     | READ array_reference ';'          { 
@@ -440,7 +442,7 @@ simple_stmt:
                                             if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                                 yyerror(getTypeStr(entry->dataType) + " type cannot INC");
                                             }
@@ -457,7 +459,7 @@ simple_stmt:
                                             if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                                 yyerror(getTypeStr(entry->dataType) + " type cannot INC");
                                             }
@@ -479,7 +481,7 @@ simple_stmt_without_semicolon:
                                             Trace("Reduce: <ID> <'='> <expr> => <simple_stmt_without_semicolon>"); 
                                             AstNode* entry = sbt->lookup($1);
                                             if(entry == nullptr) yyerror(string("Identifier ") + $1 + " is not declared");
-                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant");
+                                            if(entry->isConst) yyerror(string("Identifier ") + $1 + " is constant variable");
                                             if(entry->dataType != $3->dataType) yyerror("type not match");
                                             if($3->dataType == DataType::VOID_T) yyerror("data type of right value is void");
                                             if(entry->isFunc) yyerror("function can not be assinged");
@@ -534,7 +536,7 @@ simple_stmt_without_semicolon:
                                             if(entry == nullptr) yyerror(string("ID ") + $2 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             $$ = makeNode(); $$->dataType = DataType::UNKNOWN; 
                                         } 
     | READ array_reference              { 
@@ -547,7 +549,7 @@ simple_stmt_without_semicolon:
                                             if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                                 yyerror(getTypeStr(entry->dataType) + " type cannot INC");
                                             }
@@ -564,7 +566,7 @@ simple_stmt_without_semicolon:
                                             if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
                                             if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                             if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                             if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                                 yyerror(getTypeStr(entry->dataType) + " type cannot INC");
                                             }
@@ -680,6 +682,7 @@ expr:
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal && $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_LAND;
@@ -692,6 +695,7 @@ expr:
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal || $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_LOR;
@@ -703,6 +707,7 @@ expr:
                                         if($2->isArray) yyerror("array cannot use !");
                                         if($2->dataType != DataType::BOOL_T) yyerror("not boolean type");
                                         $$ = makeNode();
+                                        $$->iVal = !$2->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $2->isConst;
                                         $$->exprType = ExprType::EXPR_NOT;
@@ -717,6 +722,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot use <");
                                         }
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal < $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_LT;
@@ -731,6 +737,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot use >");
                                         }
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal > $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_GT;
@@ -745,6 +752,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot use <=");
                                         }
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal <= $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_LE;
@@ -759,6 +767,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot use >=");
                                         }
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal >= $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_GE;
@@ -771,6 +780,7 @@ expr:
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->isArray && $1->arrayDims.size() != $3->arrayDims.size()) yyerror("dimension not match");
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal == $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_EQ;
@@ -783,6 +793,7 @@ expr:
                                         if($1->dataType != $3->dataType) yyerror("type not match");
                                         if($1->isArray && $1->arrayDims.size() != $3->arrayDims.size()) yyerror("dimension not match");
                                         $$ = makeNode();
+                                        $$->iVal = $1->iVal != $3->iVal;
                                         $$->dataType = DataType::BOOL_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_NEQ;
@@ -797,6 +808,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot add");
                                         }
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal + $3->iVal;
                                         $$->dataType = $1->dataType;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_ADD;
@@ -811,6 +823,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot sub");
                                         }
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal - $3->iVal;
                                         $$->dataType = $1->dataType;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_SUB;
@@ -825,6 +838,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot mul");
                                         }
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal * $3->iVal;
                                         $$->dataType = $1->dataType;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_MUL;
@@ -839,6 +853,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot div");
                                         }
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal / $3->iVal;
                                         $$->dataType = $1->dataType;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_DIV;
@@ -853,6 +868,7 @@ expr:
                                             yyerror(getTypeStr($1->dataType) + " type cannot mod");
                                         }
                                         $$ = makeNode(); 
+                                        $$->iVal = $1->iVal % $3->iVal;
                                         $$->dataType = DataType::INT_T;
                                         $$->isConst = $1->isConst && $3->isConst;
                                         $$->exprType = ExprType::EXPR_MOD;
@@ -864,11 +880,12 @@ expr:
                                         if(entry == nullptr) yyerror(string("ID ") + $2 + " is not declared");
                                         if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                         if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                         if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr(entry->dataType) + " type cannot INC");
                                         }
                                         $$ = makeNode(entry);
+                                        $$->iVal = $$->iVal + 1;
                                         $$->exprType = ExprType::EXPR_INC;
                                         $$->name = entry->name;    
                                         $$->number = entry->number;       
@@ -880,11 +897,12 @@ expr:
                                         if(entry == nullptr) yyerror(string("ID ") + $2 + " is not declared");
                                         if(entry->isArray) yyerror("identifier " + entry->name + " is array");
                                         if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant");
+                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
                                         if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
                                             yyerror(getTypeStr(entry->dataType) + " type cannot DEC");
                                         }
                                         $$ = makeNode(entry);
+                                        $$->iVal = $$->iVal - 1;
                                         $$->exprType = ExprType::EXPR_DEC;
                                         $$->name = entry->name;    
                                         $$->number = entry->number;   
@@ -909,6 +927,7 @@ expr:
                                             yyerror(getTypeStr($2->dataType) + " type cannot be neg");
                                         }
                                         $$ = makeNode($2); 
+                                        $$->iVal = -$$->iVal;
                                         $$->exprType = ExprType::EXPR_NEG;
                                         $$->children = {$2};
                                     }                  
@@ -1034,7 +1053,7 @@ literal:
       TRUE             { Trace("Reduce: true => <literal>"); $$ = makeNode(); $$->dataType = DataType::BOOL_T;  $$->isConst = true; $$->iVal = 1; }
     | FALSE            { Trace("Reduce: false => <literal>") ;$$ = makeNode(); $$->dataType = DataType::BOOL_T; $$->isConst = true; $$->iVal = 0; }
     | INT_VAL          { Trace("Reduce: <INT_VAL: " + to_string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::INT_T;    $$->isConst = true; $$->iVal = $1; }
-    | STR_VAL          { Trace("Reduce: <STR_VAL: " + string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::STRING_T; $$->isConst = true; $$->sVal = $1; cout << $1 << endl;; }
+    | STR_VAL          { Trace("Reduce: <STR_VAL: " + string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::STRING_T; $$->isConst = true; $$->sVal = $1; }
     | FLOAT_VAL        { Trace("Reduce: <FLOAT_VAL: " + to_string($1) + "> => <literal>"); $$ = makeNode(); $$->dataType = DataType::FLOAT_T;  $$->isConst = true; $$->dVal = $1; }  
 ;                       
 

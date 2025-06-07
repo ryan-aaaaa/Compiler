@@ -21,8 +21,8 @@ example: parser
 	./parser test/example.sd
 
 run: 
-	./../javaa/javaa basic.jasm
-	./../jre1.8.0_451/bin/java basic
+	./../javaa/javaa example.jasm
+	./../jre1.8.0_451/bin/java example
 
 clean:
 	rm -f parser lex.yy.cpp y.tab.cpp y.tab.hpp *.out *.jasm *.class

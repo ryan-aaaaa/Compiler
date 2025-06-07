@@ -20,6 +20,8 @@ make clean
 1. foreach 沒了
 2. field 只能在最前面，是語言的限制嗎?
 3. foreach 
+4. max_locals 和 max_stack 可能會爆
+5. 宣告的左邊只能是 const value，應該為 expr <- 先做這個，應該完成了
 
 
 ## 方法
@@ -30,6 +32,10 @@ make clean
 1. 新增 CodeGenerator 物件，用來產生 jasm
 2. void function 可以不宣告資料型態
 3. 
+
+
+
+
 
 
 ## parser 功能

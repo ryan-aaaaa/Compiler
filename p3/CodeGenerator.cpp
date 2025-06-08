@@ -28,6 +28,9 @@ string CodeGenerator::dump(){
 }
 
 string CodeGenerator::getNewLabel(){
+    if(this->labelCounter == 16){
+        this->jasmStk.back() += "/*hahahaha*/\n";
+    }
     return "L" + to_string(this->labelCounter++);
 }
 
@@ -81,22 +84,10 @@ void CodeGenerator::insertEmpty(){
 void CodeGenerator::combineTopTwo(){
     string tmp = this->jasmStk.back();
     this->jasmStk.pop_back();
-    cout << "top1: " << endl << tmp << endl << endl;
-    cout << "top2: " << endl << jasmStk.back() << endl << endl;
+    // cout << "top1: " << endl << tmp << endl << endl;
+    // cout << "top2: " << endl << jasmStk.back() << endl << endl;
     this->jasmStk.back() += tmp;
 }
-
-
-// void print(AstNode* root, int indent){
-//     if (!root) return;
-//     string pad(indent, ' ');
-//     cout << pad
-//          << getTypeStr(root->exprType)  
-//          << endl;
-//     for (AstNode* child : root->children) {
-//         print(child, indent + 2);
-//     }
-// }
 
 string CodeGenerator::exprDFS(AstNode* node){
     if(node->exprType == ExprType::EXPR_ID){
@@ -115,13 +106,49 @@ string CodeGenerator::exprDFS(AstNode* node){
     }
     
     if(node->exprType == ExprType::EXPR_NOT)  return exprDFS(node->children[0]) + "iconst_1\nixor\n";
-    if(node->exprType == ExprType::EXPR_INC){
-        if(node->isGlobal) return "getstatic int " + this->className + "." + node->name + "\niconst_1\niadd\nputstatic int " + this->className + "." + node->name + "\n";
-        else return "iinc " + to_string(node->number) + " 1\n";  
+    if(node->exprType == ExprType::EXPR_INC_PREFIX){
+        if(node->isGlobal){
+            return "getstatic int " + this->className + "." + node->name + "\n"
+                 + "iconst_1\niadd\n"
+                 + "putstatic int " + this->className + "." + node->name + "\n"
+                 + "getstatic int " + this->className + "." + node->name + "\n";
+        }
+        else{
+            return "iinc " + to_string(node->number) + " 1\n" + "iload " + to_string(node->number) + "\n";   
+        }
     }
-    if(node->exprType == ExprType::EXPR_DEC){
-        if(node->isGlobal) return "getstatic int " + this->className + "." + node->name + "\niconst_1\nisub\nputstatic int " + this->className + "." + node->name + "\n";
-        else return "iinc " + to_string(node->number) + " -1\n";          
+    if(node->exprType == ExprType::EXPR_DEC_PREFIX){
+        if(node->isGlobal){
+            return "getstatic int " + this->className + "." + node->name + "\n"
+                 + "iconst_1\nisub\n"
+                 + "putstatic int " + this->className + "." + node->name + "\n"
+                 + "getstatic int " + this->className + "." + node->name + "\n";
+        }
+        else{
+            return "iinc " + to_string(node->number) + " -1\n" + "iload " + to_string(node->number) + "\n";   
+        }
+    }
+    if(node->exprType == ExprType::EXPR_INC_POSTFIX){
+        if(node->isGlobal){
+            return "getstatic int " + this->className + "." + node->name + "\n"
+                 + "getstatic int " + this->className + "." + node->name + "\n"
+                 + "iconst_1\niadd\n"
+                 + "putstatic int " + this->className + "." + node->name + "\n";
+        }
+        else{
+            return "iload " + to_string(node->number) + "\n" + "iinc " + to_string(node->number) + " 1\n";   
+        }
+    }
+    if(node->exprType == ExprType::EXPR_DEC_POSTFIX){
+        if(node->isGlobal){
+            return "getstatic int " + this->className + "." + node->name + "\n"
+                 + "getstatic int " + this->className + "." + node->name + "\n"
+                 + "iconst_1\nisub\n"
+                 + "putstatic int " + this->className + "." + node->name + "\n";
+        }
+        else{
+            return "iload " + to_string(node->number) + "\n" + "iinc " + to_string(node->number) + " -1\n";   
+        }
     }
     if(node->exprType == ExprType::EXPR_POS) return "";
     if(node->exprType == ExprType::EXPR_NEG) return exprDFS(node->children[0]) + "ineg\n";
@@ -152,7 +179,7 @@ string CodeGenerator::exprDFS(AstNode* node){
     if(node->exprType == ExprType::EXPR_MOD)  return prefix + "irem\n";
 
     string L1 = getNewLabel(), L2 = getNewLabel();
-    string suffix = L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \niconst_1\n" + L2 + ":\nnop\n";
+    string suffix = L1 + "\niconst_0\ngoto " + L2 + "\n" + L1 + ": \nnop\niconst_1\n" + L2 + ":\nnop\n";
     if(node->exprType == ExprType::EXPR_LT)  return prefix + "isub\niflt " + suffix;   
     if(node->exprType == ExprType::EXPR_GT)  return prefix + "isub\nifgt " + suffix;  
     if(node->exprType == ExprType::EXPR_LE)  return prefix + "isub\nifle " + suffix;  
@@ -164,6 +191,12 @@ string CodeGenerator::exprDFS(AstNode* node){
 
 void CodeGenerator::generateExpr(AstNode* node){   
     this->jasmStk.push_back(this->exprDFS(node));
+}
+
+void CodeGenerator::generateNoLhsExpr(AstNode* node){ 
+    string jasm = this->exprDFS(node);
+    if(node->dataType != DataType::VOID_T) jasm += "pop\n"; // pop redundent, if not void function call
+    this->jasmStk.push_back(jasm);
 }
 
 
@@ -214,7 +247,7 @@ void CodeGenerator::generateIfElse(AstNode* node){
     string elseBlock = this->jasmStk.back(); this->jasmStk.pop_back();
     string ifBlock = this->jasmStk.back(); this->jasmStk.pop_back();
     string Lfalse = this->getNewLabel(), Lexit = this->getNewLabel();
-    string tmp = exprBlock + "ifeq " + Lfalse + "\n" + ifBlock + "goto " + Lexit + "\n" + Lfalse + ": \n" + elseBlock + Lexit + ": \nnop\n";
+    string tmp = exprBlock + "ifeq " + Lfalse + "\n" + ifBlock + "goto " + Lexit + "\n" + Lfalse + ": \nnop\n" + elseBlock + Lexit + ": \nnop\n";
     this->jasmStk.push_back(tmp);
 }
 
@@ -237,7 +270,7 @@ void CodeGenerator::generateFor(AstNode* node){
 
     string Lbegin = this->getNewLabel(), Lexit = this->getNewLabel();
 
-    string tmp = preStmtBlock + Lbegin + ": \n" + exprBlock + "ifeq " + Lexit + "\n" +  stmtBlock + postStmtBlock + "goto " + Lbegin + "\n" + Lexit + ": \nnop\n";
+    string tmp = preStmtBlock + Lbegin + ": \nnop\n" + exprBlock + "ifeq " + Lexit + "\n" +  stmtBlock + postStmtBlock + "goto " + Lbegin + "\n" + Lexit + ": \nnop\n";
     this->jasmStk.push_back(tmp);
 }
 
@@ -260,10 +293,10 @@ void CodeGenerator::generateForeach(AstNode* node){
     nodePair->exprType = ExprType::EXPR_GE;
     string decExprBlock = this->exprDFS(nodePair);
     
-    id->exprType = ExprType::EXPR_INC;
-    string incPostBlock = this->exprDFS(id);
-    id->exprType = ExprType::EXPR_DEC;
-    string decPostBlock = this->exprDFS(id);
+    id->exprType = ExprType::EXPR_INC_POSTFIX;
+    string incPostBlock = this->exprDFS(id) + "pop\n";
+    id->exprType = ExprType::EXPR_DEC_POSTFIX;
+    string decPostBlock = this->exprDFS(id) + "pop\n";;
 
     string preBlock = this->exprDFS(a);
     if(id->isGlobal) preBlock += "putstatic int " + this->className + "." + id->name + "\n";
@@ -274,12 +307,13 @@ void CodeGenerator::generateForeach(AstNode* node){
 
     string tmp = "";
     tmp += modeBlock + preBlock + Lbegin + ": \n";
-    tmp += "dup\nifeq " + LdecExpr + "\n" + incExprBlock + "goto " + LexprExit + "\n" + LdecExpr + ": \n" + decExprBlock + LexprExit + ": \n";
+    tmp += "dup\nifeq " + LdecExpr + "\n" + incExprBlock + "goto " + LexprExit + "\n" + LdecExpr + ": \nnop\n" + decExprBlock + LexprExit + ": \nnop\n";
     tmp += "ifeq " + Lexit + "\n";
     tmp += stmtBlock;
-    tmp += "dup\nifeq " + LdecPost + "\n" + incPostBlock + "goto " + LpostExit + "\n" + LdecPost + ": \n" + decPostBlock + LpostExit + ": \n";  
+    tmp += "dup\nifeq " + LdecPost + "\n" + incPostBlock + "goto " + LpostExit + "\n" + LdecPost + ": \nnop\n" + decPostBlock + LpostExit + ": \nnop\n";  
     tmp += "goto " + Lbegin + "\n";
-    tmp += Lexit + ": \npop\nnop\n";
+    tmp += Lexit + ": \nnop\n";
+    tmp += "pop\n";
 
     this->jasmStk.push_back(tmp);
 }

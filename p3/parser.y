@@ -326,7 +326,6 @@ stmt_list:
         Trace("Reduce: <stmt_list> <stmt> => <stmt_list>");
         $1->push_back($2);
         $$ = $1;
-        cout << "here" << endl;
         codegen->combineTopTwo(); // if($$->size() >= 1)
     }
 ;
@@ -378,7 +377,7 @@ block_stmt:
 /* simple statement: basic statement that will not return */
 simple_stmt:
       /* empty */ ';'                   { Trace("Reduce: <empty> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; codegen->insertEmpty();}
-    |  expr ';'                         { Trace("Reduce: <expr> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; codegen->generateExpr($1); }
+    |  expr ';'                         { Trace("Reduce: <expr> <';'> => <simple_stmt>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; codegen->generateNoLhsExpr($1);}
     | ID '=' expr ';'                   { 
                                             Trace("Reduce: <ID> <'='> <expr> <';'> => <simple_stmt>"); 
                                             AstNode* entry = sbt->lookup($1);
@@ -443,47 +442,12 @@ simple_stmt:
                                             Trace("Reduce: <READ> <array_reference> <';'> => <simple_stmt>"); 
                                             $$ = makeNode(); $$->dataType = DataType::UNKNOWN; 
                                         }                                                    
-    | ID INC  ';'    %prec POSTFIX_INC  { 
-                                            Trace("Reduce: <ID> <INC> <';'> => <simple_stmt>"); 
-                                            AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
-                                            if(entry->isArray) yyerror("identifier " + entry->name + " is array");
-                                            if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
-                                            if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
-                                                yyerror(getTypeStr(entry->dataType) + " type cannot INC");
-                                            }
-                                            $$ = makeNode(entry); 
-                                            $$->exprType = ExprType::EXPR_INC;
-                                            $$->name = entry->name;
-                                            $$->number = entry->number;
-                                            $$->isGlobal = entry->isGlobal;
-                                            $$->dataType = DataType::UNKNOWN;
-                                            codegen->generateExpr($$); 
-                                        }        
-    | ID DEC  ';'    %prec POSTFIX_DEC  { 
-                                            Trace("Reduce: <ID> <DEC> <';'> => <simple_stmt>"); AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
-                                            if(entry->isArray) yyerror("identifier " + entry->name + " is array");
-                                            if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
-                                            if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
-                                                yyerror(getTypeStr(entry->dataType) + " type cannot INC");
-                                            }
-                                            $$ = makeNode(entry); 
-                                            $$->exprType = ExprType::EXPR_DEC;
-                                            $$->name = entry->name;
-                                            $$->number = entry->number;
-                                            $$->isGlobal = entry->isGlobal;
-                                            $$->dataType = DataType::UNKNOWN;
-                                            codegen->generateExpr($$); 
-                                         }            
 ;
 
 /* simple statement witout semicolon: same as simple statement but has no semicolon */
 simple_stmt_without_semicolon:
       /* empty */                       { Trace("Reduce: <empty> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; }
-    | expr                              { Trace("Reduce: <expr> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; codegen->generateExpr($1);}
+    | expr                              { Trace("Reduce: <expr> => <simple_stmt_without_semicolon>"); $$ = makeNode(); $$->dataType = DataType::UNKNOWN; codegen->generateNoLhsExpr($1);}
     | ID '=' expr                       { 
                                             Trace("Reduce: <ID> <'='> <expr> => <simple_stmt_without_semicolon>"); 
                                             AstNode* entry = sbt->lookup($1);
@@ -549,42 +513,7 @@ simple_stmt_without_semicolon:
     | READ array_reference              { 
                                             Trace("Reduce: <READ> <array_reference> => <simple_stmt_without_semicolon>"); 
                                             $$ = makeNode(); $$->dataType = DataType::UNKNOWN; 
-                                        }                                                    
-    | ID INC         %prec POSTFIX_INC  { 
-                                            Trace("Reduce: <ID> <INC> => <simple_stmt_without_semicolon>"); 
-                                            AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
-                                            if(entry->isArray) yyerror("identifier " + entry->name + " is array");
-                                            if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
-                                            if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
-                                                yyerror(getTypeStr(entry->dataType) + " type cannot INC");
-                                            }
-                                            $$ = makeNode(entry); 
-                                            $$->exprType = ExprType::EXPR_INC;
-                                            $$->name = entry->name;
-                                            $$->number = entry->number;
-                                            $$->isGlobal = entry->isGlobal;
-                                            $$->dataType = DataType::UNKNOWN;
-                                            codegen->generateExpr($$); 
-                                        }        
-    | ID DEC         %prec POSTFIX_DEC  { 
-                                            Trace("Reduce: <ID> <DEC> => <simple_stmt_without_semicolon>"); AstNode* entry = sbt->lookup($1);
-                                            if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
-                                            if(entry->isArray) yyerror("identifier " + entry->name + " is array");
-                                            if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
-                                            if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
-                                            if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
-                                                yyerror(getTypeStr(entry->dataType) + " type cannot INC");
-                                            }
-                                            $$ = makeNode(entry); 
-                                            $$->exprType = ExprType::EXPR_DEC;
-                                            $$->name = entry->name;
-                                            $$->number = entry->number;
-                                            $$->isGlobal = entry->isGlobal;
-                                            $$->dataType = DataType::UNKNOWN;
-                                            codegen->generateExpr($$); 
-                                         }         
+                                        }                                                        
 ;
 
 
@@ -611,13 +540,6 @@ condition_stmt:
         codegen->generateIfElse($3);
     }            
 ;
-
-// // simple or block statement
-// simple_or_block_stmt:
-//       simple_stmt  { Trace("Reduce: <simple_stmt> => <simple_or_block_stmt>"); $$ = $1; }
-//     | block_stmt   { Trace("Reduce: <block_stmt> => <simple_or_block_stmt>"); $$ = $1; }
-// ;
-
 
 /* loop statement: */
 loop_stmt:
@@ -881,6 +803,40 @@ expr:
                                         $$->exprType = ExprType::EXPR_MOD;
                                         $$->children = {$1, $3};
                                     } 
+    | ID INC  %prec POSTFIX_INC   {
+                                        Trace("Reduce: <INC> <expr> => <expr>"); 
+                                        AstNode* entry = sbt->lookup($1);
+                                        if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
+                                        if(entry->isArray) yyerror("identifier " + entry->name + " is array");
+                                        if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
+                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
+                                        if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
+                                            yyerror(getTypeStr(entry->dataType) + " type cannot INC");
+                                        }
+                                        $$ = makeNode(entry);
+                                        $$->iVal = $$->iVal;
+                                        $$->exprType = ExprType::EXPR_INC_POSTFIX;
+                                        $$->name = entry->name;    
+                                        $$->number = entry->number;       
+                                        $$->isGlobal = entry->isGlobal; 
+                                  }
+    | ID DEC  %prec POSTFIX_DEC   {
+                                        Trace("Reduce: <expr> <DEC> => <expr>"); 
+                                        AstNode* entry = sbt->lookup($1);
+                                        if(entry == nullptr) yyerror(string("ID ") + $1 + " is not declared");
+                                        if(entry->isArray) yyerror("identifier " + entry->name + " is array");
+                                        if(entry->isFunc) yyerror("identifier " + entry->name + " is function");
+                                        if(entry->isConst) yyerror("identifier " + entry->name + " is constant variable");
+                                        if(!(entry->dataType == DataType::INT_T || entry->dataType == DataType::FLOAT_T)){
+                                            yyerror(getTypeStr(entry->dataType) + " type cannot DEC");
+                                        }
+                                        $$ = makeNode(entry);
+                                        $$->iVal = $$->iVal;
+                                        $$->exprType = ExprType::EXPR_DEC_POSTFIX;
+                                        $$->name = entry->name;    
+                                        $$->number = entry->number;   
+                                        $$->isGlobal = entry->isGlobal;    
+                                  }
     | INC ID  %prec PREFIX_INC    {
                                         Trace("Reduce: <INC> <expr> => <expr>"); 
                                         AstNode* entry = sbt->lookup($2);
@@ -893,7 +849,7 @@ expr:
                                         }
                                         $$ = makeNode(entry);
                                         $$->iVal = $$->iVal + 1;
-                                        $$->exprType = ExprType::EXPR_INC;
+                                        $$->exprType = ExprType::EXPR_INC_PREFIX;
                                         $$->name = entry->name;    
                                         $$->number = entry->number;       
                                         $$->isGlobal = entry->isGlobal;     
@@ -910,7 +866,7 @@ expr:
                                         }
                                         $$ = makeNode(entry);
                                         $$->iVal = $$->iVal - 1;
-                                        $$->exprType = ExprType::EXPR_DEC;
+                                        $$->exprType = ExprType::EXPR_DEC_PREFIX;
                                         $$->name = entry->name;    
                                         $$->number = entry->number;   
                                         $$->isGlobal = entry->isGlobal;       

@@ -90,8 +90,10 @@ string getTypeStr(ExprType exprType){
     if(exprType == ExprType::EXPR_MUL) return           "EXPR_MUL";
     if(exprType == ExprType::EXPR_DIV) return           "EXPR_DIV";
     if(exprType == ExprType::EXPR_MOD) return           "EXPR_MOD";
-    if(exprType == ExprType::EXPR_INC) return           "EXPR_INC";
-    if(exprType == ExprType::EXPR_DEC) return           "EXPR_DEC";
+    if(exprType == ExprType::EXPR_INC_PREFIX) return    "EXPR_INC_PREFIX";
+    if(exprType == ExprType::EXPR_DEC_PREFIX) return    "EXPR_DEC_PREFIX";
+    if(exprType == ExprType::EXPR_INC_POSTFIX) return   "EXPR_INC_POSTFIX";
+    if(exprType == ExprType::EXPR_DEC_POSTFIX) return   "EXPR_DEC_POSTFIX";
     if(exprType == ExprType::EXPR_POS) return           "EXPR_POS";
     if(exprType == ExprType::EXPR_NEG) return           "EXPR_NEG";
     if(exprType == ExprType::EXPR_BRAC) return          "EXPR_BRAC";

@@ -24,6 +24,7 @@ public:
 
     string exprDFS(AstNode* node);
     void generateExpr(AstNode* node);
+    void generateNoLhsExpr(AstNode* node);
     void generateAssignment(AstNode* node);
     void generatePrint(AstNode* node);
     void generatePrintln(AstNode* node);

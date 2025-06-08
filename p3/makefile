@@ -11,8 +11,10 @@ lex.yy.cpp: scanner.l
 y.tab.cpp y.tab.hpp: parser.y SymbolTable.hpp AST.hpp CodeGenerator.hpp
 	yacc -d -y -o y.tab.cpp parser.y
 
-run: 
+gen:
 	./parser test/example.sd
+
+run: 
 	./../javaa/javaa example.jasm
 	./../jre1.8.0_451/bin/java example
 

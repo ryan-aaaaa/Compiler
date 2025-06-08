@@ -3,7 +3,6 @@ B11115030/
 *.zip
 p1/*.sd
 
-p2_template/
 y.tab.*
 lex.yy.*
 parser

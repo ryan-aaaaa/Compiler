@@ -5,10 +5,16 @@ B11115030 陳毅恩
 ```
 make example
 ```
-## generate java byte code & run 
+## generate java byte code 
+```
+make gen
+```
+
+## run
 ```
 make run
 ```
+
 ## clean 
 ```
 make clean

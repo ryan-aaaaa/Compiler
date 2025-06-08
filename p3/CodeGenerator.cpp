@@ -81,6 +81,8 @@ void CodeGenerator::insertEmpty(){
 void CodeGenerator::combineTopTwo(){
     string tmp = this->jasmStk.back();
     this->jasmStk.pop_back();
+    cout << "top1: " << endl << tmp << endl << endl;
+    cout << "top2: " << endl << jasmStk.back() << endl << endl;
     this->jasmStk.back() += tmp;
 }
 

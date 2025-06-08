@@ -36,7 +36,7 @@ CodeGenerator* codegen = nullptr;
 // yyerror
 void yyerror(string s);
 
-bool printJasm = true;
+bool printJasm = false;
 %}
 
 %union {
@@ -137,6 +137,7 @@ constant_decl:
             bool success = sbt->insert(node); 
             if(!success) yyerror("redefinition of " + node->name);
         }
+        codegen->insertEmpty();
     }
 ;
 
@@ -325,6 +326,7 @@ stmt_list:
         Trace("Reduce: <stmt_list> <stmt> => <stmt_list>");
         $1->push_back($2);
         $$ = $1;
+        cout << "here" << endl;
         codegen->combineTopTwo(); // if($$->size() >= 1)
     }
 ;
